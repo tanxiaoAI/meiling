@@ -43,6 +43,50 @@
 
 ---
 
+### Meiling Fork
+
+This repository is a runnable full-stack product fork used for the `meiling` project.
+It keeps the upstream OpenCode foundation, plus local UI/workbench adjustments and delivery-oriented setup.
+
+### Quick Start For Local Product Development
+
+```bash
+# 1. Install dependencies
+bun install
+
+# 2. Start the backend API on :4096
+bun run --cwd packages/opencode --conditions=browser src/index.ts serve --port 4096
+
+# 3. Start the web app on :4444
+bun run dev:web
+```
+
+Open [http://localhost:4444](http://localhost:4444).
+
+Important notes:
+
+- `http://localhost:4444` is the local product UI.
+- The app expects the backend on `http://localhost:4096` by default.
+- `opencode dev web` proxies the hosted app, so local CSS/UI changes will not show there.
+
+### Attachment Support In This Fork
+
+The current web product flow directly supports:
+
+- images
+- PDF files
+- text-based files, including code, Markdown, JSON, YAML, XML, and CSV/TSV style text tables
+
+Not directly supported by the current web attachment flow:
+
+- native Excel files such as `.xlsx`
+- video uploads
+- audio uploads
+
+### Repo Hygiene
+
+This fork intentionally ignores local-only artifacts such as backup folders, debug markdown files, and `*.backup` files so product commits stay clean.
+
 ### Installation
 
 ```bash

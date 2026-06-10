@@ -43,6 +43,50 @@
 
 ---
 
+### Meiling 产品分支说明
+
+这个仓库是用于 `meiling` 项目的可运行前后端产品分支。
+它保留了上游 OpenCode 的基础能力，同时加入了本地工作台 UI 调整和更偏交付的产品配置。
+
+### 本地运行
+
+```bash
+# 1. 安装依赖
+bun install
+
+# 2. 启动后端 API，默认端口 4096
+bun run --cwd packages/opencode --conditions=browser src/index.ts serve --port 4096
+
+# 3. 启动前端应用，默认端口 4444
+bun run dev:web
+```
+
+打开 [http://localhost:4444](http://localhost:4444)。
+
+注意：
+
+- `http://localhost:4444` 才是本地产品前端页面。
+- 前端默认连接 `http://localhost:4096` 的后端服务。
+- `opencode dev web` 走的是代理链路，本地 CSS / UI 改动不会直接显示在那里。
+
+### 当前附件能力
+
+当前这套 Web 产品链路可直接支持：
+
+- 图片
+- PDF
+- 文本类文件，包括代码、Markdown、JSON、YAML、XML，以及 CSV / TSV 这类文本表格
+
+当前这条 Web 附件链路暂不直接支持：
+
+- `.xlsx` 这类原生 Excel 文件
+- 视频上传
+- 音频上传
+
+### 仓库清洁规则
+
+这个分支默认忽略本地备份目录、调试 Markdown 文件和 `*.backup` 文件，避免把非产品内容带进正式提交。
+
 ### 安装
 
 ```bash
