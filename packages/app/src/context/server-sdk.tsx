@@ -24,6 +24,7 @@ export function resumeStreamAfterPageShow(event: PageTransitionEvent, start: () 
 export function createServerSdkContext(server: ServerConnection.Any, scope: ServerScope) {
   const platform = usePlatform()
   const abort = new AbortController()
+  const defaultWorkspaceID = import.meta.env.VITE_OPENCODE_DEFAULT_WORKSPACE_ID?.trim() || undefined
 
   const eventFetch = (() => {
     if (!platform.fetch || !server) return
@@ -40,6 +41,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
     signal: abort.signal,
     fetch: eventFetch,
     server: server.http,
+    experimental_workspaceID: defaultWorkspaceID,
   })
   const emitter = createGlobalEmitter<{
     [key: string]: Event
@@ -240,6 +242,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
     server: server.http,
     fetch: platform.fetch,
     throwOnError: true,
+    experimental_workspaceID: defaultWorkspaceID,
   })
 
   return {
@@ -252,10 +255,12 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
       start,
     },
     createClient(opts: Omit<Parameters<typeof createSdkForServer>[0], "server" | "fetch">) {
+      const experimental_workspaceID = opts.experimental_workspaceID ?? defaultWorkspaceID
       return createSdkForServer({
         server: server.http,
         fetch: platform.fetch,
         ...opts,
+        experimental_workspaceID,
       })
     },
   }

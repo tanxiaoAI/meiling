@@ -79,8 +79,10 @@ function RootEntryRoute() {
   const navigate = useNavigate()
 
   const targetDirectory = createMemo(() => {
-    const configured = import.meta.env.VITE_OPENCODE_DEFAULT_PROJECT_DIR?.trim()
-    return server.projects.last() || server.projects.list()[0]?.worktree || serverSync.data.path.directory || configured
+    const configuredDirectory = import.meta.env.VITE_OPENCODE_DEFAULT_PROJECT_DIR?.trim()
+    const configuredWorkspaceID = import.meta.env.VITE_OPENCODE_DEFAULT_WORKSPACE_ID?.trim()
+    if (configuredWorkspaceID && configuredDirectory) return configuredDirectory
+    return server.projects.last() || server.projects.list()[0]?.worktree || serverSync.data.path.directory || configuredDirectory
   })
 
   createEffect(() => {
