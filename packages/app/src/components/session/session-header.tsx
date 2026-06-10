@@ -23,7 +23,8 @@ import { focusTerminalById } from "@/pages/session/helpers"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { messageAgentColor } from "@/utils/agent"
 import { decode64 } from "@/utils/base64"
-import { Persist, persisted } from "@/utils/persist"
+import { clearPortalBridgeState, loadPortalBridgeState } from "@/utils/portal-bridge"
+import { Persist, persisted, removePersisted } from "@/utils/persist"
 import { StatusPopover, StatusPopoverV2 } from "../status-popover"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
@@ -236,10 +237,6 @@ export function SessionHeader() {
   const v2ActionsState = createMemo<SessionHeaderV2ActionsState>(() => ({
     statusVisible: status(),
     statusLabel: language.t("status.popover.trigger"),
-    reviewLabel: language.t("command.review.toggle"),
-    reviewKeybind: command.keybind("review.toggle"),
-    reviewOpened: view().reviewPanel.opened(),
-    onReviewToggle: () => view().reviewPanel.toggle(),
   }))
 
   const selectApp = (app: OpenApp) => {
@@ -295,12 +292,15 @@ export function SessionHeader() {
               type="button"
               variant="ghost"
               size="small"
-              class="hidden md:flex w-[240px] max-w-full min-w-0 items-center gap-2 justify-between rounded-md border border-border-weak-base bg-surface-panel shadow-none cursor-default"
+              class="hidden md:flex h-10 w-[280px] max-w-full min-w-0 items-center gap-3 justify-between rounded-[14px] border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.90)_100%)] px-3 shadow-[0_10px_26px_rgba(15,23,42,0.06)] cursor-default backdrop-blur"
               onClick={() => command.trigger("file.open")}
               aria-label={language.t("session.header.searchFiles")}
             >
-              <div class="flex min-w-0 flex-1 items-center overflow-visible">
-                <span class="flex-1 min-w-0 text-12-regular text-text-weak truncate text-left">
+              <div class="flex min-w-0 flex-1 items-center gap-2 overflow-visible">
+                <div class="flex size-6 shrink-0 items-center justify-center rounded-full bg-[rgba(37,99,235,0.10)] text-[var(--v2-text-text-accent)]">
+                  <Icon name="search" size="small" />
+                </div>
+                <span class="flex-1 min-w-0 text-[13px] font-medium text-[var(--v2-text-text-muted)] truncate text-left">
                   {language.t("session.header.search.placeholder", {
                     project: name(),
                   })}
@@ -309,7 +309,7 @@ export function SessionHeader() {
 
               <Show when={hotkey()}>
                 {(keybind) => (
-                  <Keybind class="shrink-0 !border-0 !bg-transparent !shadow-none px-0 text-text-weaker">
+                  <Keybind class="shrink-0 rounded-full !border-[rgba(148,163,184,0.16)] !bg-white/70 !shadow-none px-2 text-text-weaker">
                     {keybind()}
                   </Keybind>
                 )}
@@ -444,6 +444,7 @@ export function SessionHeader() {
                         <StatusPopover />
                       </Tooltip>
                     </Show>
+                    <SessionAccountMenu />
                     <Show when={term()}>
                       <TooltipKeybind
                         title={language.t("command.terminal.toggle")}
@@ -522,34 +523,111 @@ export function SessionHeader() {
 type SessionHeaderV2ActionsState = {
   statusVisible: boolean
   statusLabel: string
-  reviewLabel: string
-  reviewKeybind: string
-  reviewOpened: boolean
-  onReviewToggle: () => void
 }
 
 function SessionHeaderV2Actions(props: { state: SessionHeaderV2ActionsState }) {
   return (
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 pr-1">
       <Show when={props.state.statusVisible}>
         <Tooltip placement="bottom" value={props.state.statusLabel}>
           <StatusPopoverV2 />
         </Tooltip>
       </Show>
-      <TooltipKeybind title={props.state.reviewLabel} keybind={props.state.reviewKeybind}>
-        <IconButtonV2
-          type="button"
-          variant="ghost-muted"
-          size="large"
-          class="!w-9 shrink-0"
-          state={props.state.reviewOpened ? "pressed" : undefined}
-          onClick={props.state.onReviewToggle}
-          aria-label={props.state.reviewLabel}
-          aria-expanded={props.state.reviewOpened}
-          aria-controls="review-panel"
-          icon={<IconV2 name="sidebar-right" />}
-        />
-      </TooltipKeybind>
+      <SessionAccountMenu v2 />
     </div>
   )
+}
+
+function SessionAccountMenu(props: { v2?: boolean }) {
+  const server = useServer()
+  const platform = usePlatform()
+  const command = useCommand()
+  const portalBridge = createMemo(() => loadPortalBridgeState())
+
+  const username = createMemo(() => server.current?.http.username?.trim() || portalBridge()?.email?.trim() || "当前账号")
+  const nickname = createMemo(() => server.current?.displayName?.trim() || portalBridge()?.displayName?.trim() || username())
+  const subtitle = createMemo(() => {
+    const baseUrl = portalBridge()?.baseUrl?.trim()
+    if (baseUrl) return baseUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "")
+    return server.current?.http.url.replace(/^https?:\/\//, "").replace(/\/+$/, "") || ""
+  })
+  const avatarText = createMemo(() => nickname().trim().slice(0, 1).toUpperCase() || "A")
+
+  const logout = () => {
+    removePersisted(Persist.global("server", ["server.v3"]), platform)
+    void platform.setDefaultServer?.(null)
+    clearPortalBridgeState()
+    window.location.replace(resolvePortalLogoutUrl())
+  }
+
+  const triggerClass = () =>
+    props.v2
+      ? "flex h-9 shrink-0 items-center gap-1 rounded-full border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] px-1.5 text-[13px] text-v2-text-text-base shadow-[0_8px_20px_rgba(15,23,42,0.06)] transition hover:bg-white data-[expanded]:bg-white"
+      : "flex h-8 shrink-0 items-center gap-2 rounded-lg border border-border-weak-base bg-surface-panel px-2.5 text-12-regular text-text-strong transition hover:bg-surface-raised-base-hover data-[expanded]:bg-surface-raised-base-active"
+
+  return (
+    <DropdownMenu gutter={6} placement="bottom-end" modal={false}>
+      <DropdownMenu.Trigger
+        as={Button}
+        variant="ghost"
+        class={triggerClass()}
+        aria-label="账号菜单"
+      >
+        <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-sky-100 text-[12px] font-semibold text-sky-700">
+          {avatarText()}
+        </span>
+        <Show when={!props.v2}>
+          <span class="hidden max-w-28 truncate text-left md:block">{nickname()}</span>
+        </Show>
+        <Icon
+          name="chevron-down"
+          size="small"
+          classList={{
+            "text-icon-weak": true,
+            "mr-0.5": props.v2,
+          }}
+        />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content class="min-w-[240px]">
+          <div class="px-3 py-2.5">
+            <div class="flex items-center gap-2">
+              <span class="size-2 rounded-full bg-emerald-500" />
+              <span class="text-12-medium text-[color:var(--text-success-base,var(--text-strong))]">已登录</span>
+            </div>
+            <div class="mt-2 text-14-medium text-text-strong">{nickname()}</div>
+            <div class="mt-1 text-12-regular text-text-weak">{username()}</div>
+            <Show when={subtitle()}>
+              {(value) => <div class="mt-1 text-12-regular text-text-weaker break-all">{value()}</div>}
+            </Show>
+          </div>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item onSelect={logout}>
+            <div class="flex size-5 shrink-0 items-center justify-center">
+              <Icon name="logout" size="small" class="text-icon-weak" />
+            </div>
+            <DropdownMenu.ItemLabel>退出登录</DropdownMenu.ItemLabel>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu>
+  )
+}
+
+function resolvePortalLogoutUrl() {
+  const bridge = loadPortalBridgeState()
+  if (bridge?.logoutUrl) return bridge.logoutUrl
+  const configured = import.meta.env.VITE_PORTAL_BASE_URL?.trim()
+  if (configured) {
+    return new URL("/api/auth/logout", configured).toString()
+  }
+
+  const current = new URL(window.location.href)
+  if (current.port === "4444") {
+    current.port = "3000"
+  }
+  current.pathname = "/api/auth/logout"
+  current.search = ""
+  current.hash = ""
+  return current.toString()
 }

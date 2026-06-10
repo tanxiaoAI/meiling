@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@solidjs/router"
+import { A, useNavigate, useParams } from "@solidjs/router"
 import { createEffect, createMemo, For, Show, type Accessor, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createSortable } from "@thisbeyond/solid-dnd"
@@ -234,6 +234,7 @@ const WorkspaceActions = (props: {
 )
 
 const WorkspaceSessionList = (props: {
+  directory: Accessor<string>
   slug: Accessor<string>
   mobile?: boolean
   ctx: WorkspaceSidebarContext
@@ -243,52 +244,76 @@ const WorkspaceSessionList = (props: {
   hasMore: Accessor<boolean>
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
-}): JSX.Element => (
-  <nav class="flex flex-col gap-1">
-    <Show when={props.showNew()}>
-      <NewSessionItem
-        slug={props.slug()}
-        mobile={props.mobile}
-        sidebarExpanded={props.ctx.sidebarExpanded}
-        clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
-      />
-    </Show>
-    <Show when={props.loading()}>
-      <SessionSkeleton />
-    </Show>
-    <For each={props.sessions()}>
-      {(session) => (
-        <SessionItem
-          session={session}
-          list={props.sessions()}
-          navList={props.ctx.navList}
+}): JSX.Element => {
+  const params = useParams()
+  const showDraft = createMemo(() => !params.id && pathKey(props.ctx.currentDir()) === pathKey(props.directory()))
+
+  return (
+    <nav class="flex flex-col gap-1">
+      <Show when={props.showNew()}>
+        <NewSessionItem
           slug={props.slug()}
           mobile={props.mobile}
-          showChild
           sidebarExpanded={props.ctx.sidebarExpanded}
           clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
-          prefetchSession={props.ctx.prefetchSession}
-          archiveSession={props.ctx.archiveSession}
         />
-      )}
-    </For>
-    <Show when={props.hasMore()}>
-      <div class="relative w-full py-1">
-        <Button
-          variant="ghost"
-          class="flex w-full text-left justify-start text-14-regular text-text-weak pl-2 pr-10"
-          size="large"
-          onClick={(e: MouseEvent) => {
-            void props.loadMore()
-            ;(e.currentTarget as HTMLButtonElement).blur()
-          }}
-        >
-          {props.language.t("common.loadMore")}
-        </Button>
-      </div>
-    </Show>
-  </nav>
-)
+      </Show>
+      <Show when={showDraft()}>
+        <div class="group/session relative w-full min-w-0 rounded-md cursor-default pl-2 pr-3 bg-surface-base-active">
+          <A
+            href={`/${props.slug()}/session`}
+            end
+            class="flex items-center gap-2 min-w-0 w-full py-1 text-left focus:outline-none active"
+            onClick={() => {
+              props.ctx.clearHoverProjectSoon()
+            }}
+          >
+            <div class="shrink-0 size-6 flex items-center justify-center">
+              <Icon name="new-session" size="small" class="text-icon-interactive-base" />
+            </div>
+            <span class="text-14-regular text-text-strong min-w-0 flex-1 truncate">
+              {props.language.t("session.new.title")}
+            </span>
+          </A>
+        </div>
+      </Show>
+      <Show when={props.loading()}>
+        <SessionSkeleton />
+      </Show>
+      <For each={props.sessions()}>
+        {(session) => (
+          <SessionItem
+            session={session}
+            list={props.sessions()}
+            navList={props.ctx.navList}
+            slug={props.slug()}
+            mobile={props.mobile}
+            showChild
+            sidebarExpanded={props.ctx.sidebarExpanded}
+            clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
+            prefetchSession={props.ctx.prefetchSession}
+            archiveSession={props.ctx.archiveSession}
+          />
+        )}
+      </For>
+      <Show when={props.hasMore()}>
+        <div class="relative w-full py-1">
+          <Button
+            variant="ghost"
+            class="flex w-full text-left justify-start text-14-regular text-text-weak pl-2 pr-10"
+            size="large"
+            onClick={(e: MouseEvent) => {
+              void props.loadMore()
+              ;(e.currentTarget as HTMLButtonElement).blur()
+            }}
+          >
+            {props.language.t("common.loadMore")}
+          </Button>
+        </div>
+      </Show>
+    </nav>
+  )
+}
 
 export const SortableWorkspace = (props: {
   ctx: WorkspaceSidebarContext
@@ -424,6 +449,7 @@ export const SortableWorkspace = (props: {
 
         <Collapsible.Content>
           <WorkspaceSessionList
+            directory={() => props.directory}
             slug={slug}
             mobile={props.mobile}
             ctx={props.ctx}
@@ -470,6 +496,7 @@ export const LocalWorkspace = (props: {
       class="size-full flex flex-col py-2 overflow-y-auto no-scrollbar [overflow-anchor:none]"
     >
       <WorkspaceSessionList
+        directory={() => props.project.worktree}
         slug={slug}
         mobile={props.mobile}
         ctx={props.ctx}

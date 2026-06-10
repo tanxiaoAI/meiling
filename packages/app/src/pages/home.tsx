@@ -46,6 +46,7 @@ import { useGlobal } from "@/context/global"
 import { useCommand } from "@/context/command"
 import { useSettings } from "@/context/settings"
 import { ServerHealthIndicator } from "@/components/server/server-row"
+import { getWorkbenchUrl } from "@/utils/workbench"
 
 const HOME_SESSION_LIMIT = 15
 const HOME_ROW_LAYOUT =
@@ -409,8 +410,9 @@ function HomeDesign() {
           }}
           clearNotifications={clearNotifications}
           unseenCount={unseenCount}
+          openWorkbench={() => platform.openLink(getWorkbenchUrl("/workspace"))}
           openSettings={openSettings}
-          openHelp={() => platform.openLink("https://opencode.ai/desktop-feedback")}
+          openHelp={() => undefined}
           language={language}
         />
 
@@ -492,6 +494,7 @@ function HomeProjectColumn(props: {
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
   unseenCount: (server: ServerConnection.Any, project: LocalProject) => number
+  openWorkbench: () => void
   openSettings: () => void
   openHelp: () => void
   language: ReturnType<typeof useLanguage>
@@ -557,6 +560,14 @@ function HomeProjectColumn(props: {
         </For>
       </Show>
       <div class="flex min-w-0 flex-col gap-1">
+        <button
+          type="button"
+          class={`${HOME_PROJECT_NAV_ROW} text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted`}
+          onClick={props.openWorkbench}
+        >
+          <IconV2 name="grid-plus" size="small" />
+          <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("sidebar.workbench")}</span>
+        </button>
         <button
           type="button"
           class={`${HOME_PROJECT_NAV_ROW} text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted`}

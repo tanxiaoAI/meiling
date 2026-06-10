@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
+import { For, Show, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Tabs } from "@opencode-ai/ui/tabs"
@@ -64,7 +64,6 @@ export function SessionSidePanel(props: {
   const reviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
   const fileOpen = createMemo(() => isDesktop() && shown() && layout.fileTree.opened())
   const open = createMemo(() => reviewOpen() || fileOpen())
-  const reviewTab = createMemo(() => isDesktop())
   const panelWidth = createMemo(() => {
     if (!open()) return "0px"
     if (reviewOpen()) return "auto"
@@ -103,8 +102,14 @@ export function SessionSidePanel(props: {
   const empty = (msg: string) => (
     <div class="h-full flex flex-col">
       <div class="h-6 shrink-0" aria-hidden />
-      <div class="flex-1 pb-64 flex items-center justify-center text-center">
-        <div class="text-12-regular text-text-weak">{msg}</div>
+      <div class="flex-1 pb-40 px-6 flex items-center justify-center text-center">
+        <div class="w-full max-w-56 rounded-[20px] border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.92)_100%)] p-5 shadow-[0_14px_32px_rgba(15,23,42,0.08)]">
+          <div class="mx-auto flex size-10 items-center justify-center rounded-[14px] bg-[rgba(37,99,235,0.10)] text-[var(--v2-text-text-accent)]">
+            <Icon name="file" size="small" />
+          </div>
+          <div class="mt-3 text-[13px] font-medium text-[var(--v2-text-text-base)]">文件工作区</div>
+          <div class="mt-2 text-12-regular text-text-weak">{msg}</div>
+        </div>
       </div>
     </div>
   )
@@ -120,7 +125,7 @@ export function SessionSidePanel(props: {
     return file.tab(tab)
   }
 
-  const openReviewPanel = () => {
+  const openReaderPanel = () => {
     if (!view().reviewPanel.opened()) view().reviewPanel.open()
   }
 
@@ -129,7 +134,7 @@ export function SessionSidePanel(props: {
     openTab: tabs().open,
     pathFromTab: file.pathFromTab,
     loadFile: file.load,
-    openReviewPanel,
+    openReviewPanel: openReaderPanel,
     setActive: tabs().setActive,
   })
 
@@ -137,24 +142,14 @@ export function SessionSidePanel(props: {
     tabs,
     pathFromTab: file.pathFromTab,
     normalizeTab,
-    review: reviewTab,
-    hasReview: props.canReview,
   })
   const contextOpen = tabState.contextOpen
   const openedTabs = tabState.openedTabs
   const activeTab = tabState.activeTab
   const activeFileTab = tabState.activeFileTab
 
-  const fileTreeTab = () => layout.fileTree.tab()
-
-  const setFileTreeTabValue = (value: string) => {
-    if (value !== "changes" && value !== "all") return
-    layout.fileTree.setTab(value)
-  }
-
   const showAllFiles = () => {
-    if (fileTreeTab() !== "changes") return
-    layout.fileTree.setTab("all")
+    if (!layout.fileTree.opened()) layout.fileTree.open()
   }
 
   const [store, setStore] = createStore({
@@ -203,18 +198,19 @@ export function SessionSidePanel(props: {
   })
 
   return (
-    <Show when={isDesktop() && !(settings.general.newLayoutDesigns() && !params.id)}>
+    <Show when={isDesktop()}>
       <aside
         id="review-panel"
         aria-label={language.t("session.panel.reviewAndFiles")}
         aria-hidden={!open()}
         inert={!open()}
-        class="relative min-w-0 h-full flex shrink-0 overflow-hidden bg-background-base"
+        class="relative min-w-0 h-full flex shrink-0 overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.92)_100%)]"
         classList={{
           "pointer-events-none": !open(),
           "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
             !props.size.active() && !props.reviewSnap,
-          "rounded-[10px] shadow-[var(--v2-elevation-raised)] overflow-hidden": settings.general.newLayoutDesigns(),
+          "rounded-[22px] border border-[rgba(148,163,184,0.16)] shadow-[0_22px_48px_rgba(15,23,42,0.10)] overflow-hidden":
+            settings.general.newLayoutDesigns(),
           "flex-1": reviewOpen(),
         }}
         style={{ width: panelWidth() }}
@@ -234,7 +230,7 @@ export function SessionSidePanel(props: {
                 "pointer-events-none": !reviewOpen(),
               }}
             >
-              <div class="size-full min-w-0 h-full bg-background-base">
+              <div class="size-full min-w-0 h-full bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)]">
                 <DragDropProvider
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
@@ -244,23 +240,31 @@ export function SessionSidePanel(props: {
                   <DragDropSensors />
                   <ConstrainDragYAxis />
                   <Tabs value={activeTab()} onChange={openTab}>
-                    <div class="sticky top-0 shrink-0 flex">
+                    <div class="sticky top-0 z-10 shrink-0 border-b border-[rgba(148,163,184,0.16)] bg-[rgba(255,255,255,0.86)] backdrop-blur">
+                      <div class="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-weak">
+                          {language.t("session.tab.review")}
+                        </div>
+                        <Show when={!shown()}>
+                          <TooltipKeybind title={language.t("command.review.toggle")} keybind={command.keybind("review.toggle")}>
+                            <IconButton
+                              icon="sidebar-right"
+                              variant="ghost"
+                              class="h-8 w-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/80"
+                              onClick={() => view().reviewPanel.toggle()}
+                              aria-label={language.t("command.review.toggle")}
+                              aria-expanded={view().reviewPanel.opened()}
+                              aria-controls="review-panel"
+                            />
+                          </TooltipKeybind>
+                        </Show>
+                      </div>
                       <Tabs.List
                         ref={(el: HTMLDivElement) => {
                           const stop = createFileTabListSync({ el, contextOpen })
                           onCleanup(stop)
                         }}
                       >
-                        <Show when={reviewTab() && props.canReview()}>
-                          <Tabs.Trigger value="review">
-                            <div class="flex items-center gap-1.5">
-                              <div>{language.t("session.tab.review")}</div>
-                              <Show when={props.hasReview()}>
-                                <div>{props.reviewCount()}</div>
-                              </Show>
-                            </div>
-                          </Tabs.Trigger>
-                        </Show>
                         <Show when={contextOpen()}>
                           <Tabs.Trigger
                             value="context"
@@ -292,7 +296,7 @@ export function SessionSidePanel(props: {
                         <SortableProvider ids={openedTabs()}>
                           <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                         </SortableProvider>
-                        <div class="bg-background-stronger h-full shrink-0 sticky right-0 z-10 flex items-center justify-center pr-3">
+                        <div class="bg-[rgba(255,255,255,0.86)] h-full shrink-0 sticky right-0 z-10 flex items-center justify-center pr-3">
                           <TooltipKeybind
                             title={language.t("command.file.open")}
                             keybind={command.keybind("file.open")}
@@ -315,19 +319,18 @@ export function SessionSidePanel(props: {
                       </Tabs.List>
                     </div>
 
-                    <Show when={reviewTab() && props.canReview()}>
-                      <Tabs.Content value="review" class="flex flex-col h-full overflow-hidden contain-strict">
-                        <Show when={reviewOpen() && activeTab() === "review"}>{props.reviewPanel()}</Show>
-                      </Tabs.Content>
-                    </Show>
-
                     <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
                       <Show when={activeTab() === "empty"}>
                         <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-                          <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-6">
-                            <Mark class="w-14 opacity-10" />
-                            <div class="text-14-regular text-text-weak max-w-56">
+                          <div class="h-full px-6 pb-32 -mt-4 flex flex-col items-center justify-center text-center gap-5">
+                            <div class="flex size-16 items-center justify-center rounded-[20px] bg-[rgba(37,99,235,0.10)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                              <Mark class="w-8 opacity-80" />
+                            </div>
+                            <div class="max-w-56">
+                              <div class="text-[14px] font-semibold text-[var(--v2-text-text-base)]">开始浏览文件</div>
+                              <div class="mt-2 text-14-regular text-text-weak">
                               {language.t("session.files.selectToOpen")}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -381,64 +384,37 @@ export function SessionSidePanel(props: {
                   class="h-full flex flex-col overflow-hidden group/filetree"
                   classList={{ "border-l border-border-weaker-base": reviewOpen() }}
                 >
-                  <Tabs
-                    variant="pill"
-                    value={fileTreeTab()}
-                    onChange={setFileTreeTabValue}
-                    class="h-full"
-                    data-scope="filetree"
-                  >
-                    <Tabs.List>
-                      <Tabs.Trigger value="changes" class="flex-1" classes={{ button: "w-full" }}>
-                        {props.reviewCount()}{" "}
-                        {language.t(
-                          props.reviewCount() === 1 ? "session.review.change.one" : "session.review.change.other",
-                        )}
-                      </Tabs.Trigger>
-                      <Tabs.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
-                        {language.t("session.files.all")}
-                      </Tabs.Trigger>
-                    </Tabs.List>
-                    <Tabs.Content value="changes" class="bg-background-stronger px-3 py-0">
-                      <Switch>
-                        <Match when={props.hasReview() || !props.diffsReady()}>
-                          <Show
-                            when={props.diffsReady()}
-                            fallback={
-                              <div class="px-2 py-2 text-12-regular text-text-weak">
-                                {language.t("common.loading")}
-                                {language.t("common.loading.ellipsis")}
-                              </div>
-                            }
-                          >
-                            <FileTree
-                              path=""
-                              class="pt-3"
-                              allowed={diffFiles()}
-                              kinds={kinds()}
-                              draggable={false}
-                              active={props.activeDiff}
-                              onFileClick={(node) => props.focusReviewDiff(node.path)}
-                            />
-                          </Show>
-                        </Match>
-                      </Switch>
-                    </Tabs.Content>
-                    <Tabs.Content value="all" class="bg-background-stronger px-3 py-0">
-                      <Switch>
-                        <Match when={nofiles()}>{empty(language.t("session.files.empty"))}</Match>
-                        <Match when={true}>
-                          <FileTree
-                            path=""
-                            class="pt-3"
-                            modified={diffFiles()}
-                            kinds={kinds()}
-                            onFileClick={(node) => openTab(file.tab(node.path))}
+                  <div class="h-full flex flex-col overflow-hidden bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.92)_100%)]">
+                    <div class="shrink-0 border-b border-[rgba(148,163,184,0.16)] px-4 pt-3 pb-2">
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-weak">
+                          {language.t("session.files.all")}
+                        </div>
+                        <TooltipKeybind title={language.t("command.review.toggle")} keybind={command.keybind("review.toggle")}>
+                          <IconButton
+                            icon="sidebar-right"
+                            variant="ghost"
+                            class="h-8 w-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/80"
+                            onClick={() => view().reviewPanel.toggle()}
+                            aria-label={language.t("command.review.toggle")}
+                            aria-expanded={view().reviewPanel.opened()}
+                            aria-controls="review-panel"
                           />
-                        </Match>
-                      </Switch>
-                    </Tabs.Content>
-                  </Tabs>
+                        </TooltipKeybind>
+                      </div>
+                    </div>
+                    <div class="flex-1 overflow-hidden px-3 py-2">
+                      <Show when={!nofiles()} fallback={empty(language.t("session.files.empty"))}>
+                        <FileTree
+                          path=""
+                          class="pt-2"
+                          modified={diffFiles()}
+                          kinds={kinds()}
+                          onFileClick={(node) => openTab(file.tab(node.path))}
+                        />
+                      </Show>
+                    </div>
+                  </div>
                 </div>
                 <Show when={fileOpen()}>
                   <div onPointerDown={() => props.size.start()}>

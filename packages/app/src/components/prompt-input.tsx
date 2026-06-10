@@ -1317,7 +1317,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const designPlaceholder = () => {
     if (store.mode === "shell") return placeholder()
-    return "Ask anything, / for commands, @ for context..."
+    return "描述你的需求，或输入 / 命令、@ 上下文"
   }
 
   const modelControlState = createMemo<ComposerModelControlState>(() => ({
@@ -1466,7 +1466,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               data-component={newSession() ? "session-new-composer" : "session-composer"}
               onSubmit={handleSubmit}
               classList={{
-                "group/prompt-input min-h-[96px] w-full rounded-xl bg-v2-background-bg-base shadow-[var(--v2-elevation-raised)]": true,
+                "group/prompt-input min-h-[104px] w-full rounded-[22px] border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.94)_100%)] shadow-[0_24px_48px_rgba(15,23,42,0.10)] backdrop-blur": true,
                 "border-icon-info-active border-dashed": store.draggingType !== null,
                 [props.class ?? ""]: !!props.class,
               }}
@@ -1532,7 +1532,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     onKeyDown={handleKeyDown}
                     classList={{
                       "select-text": true,
-                      "min-h-[52px] w-full px-4 pt-4 pb-2 focus:outline-none whitespace-pre-wrap leading-5 text-[13px] font-[440] text-v2-text-text-base": true,
+                      "min-h-[56px] w-full px-5 pt-5 pb-2 focus:outline-none whitespace-pre-wrap leading-6 text-[14px] font-[440] text-v2-text-text-base": true,
                       "[&_[data-type=file]]:text-syntax-property": true,
                       "[&_[data-type=agent]]:text-syntax-type": true,
                       "font-mono!": store.mode === "shell",
@@ -1540,14 +1540,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   />
                   <div
                     data-component={newSession() ? "session-new-design-text" : "session-composer-text"}
-                    class="absolute top-0 inset-x-0 px-4 pt-4 pointer-events-none whitespace-nowrap truncate leading-5 text-[13px] font-[440] text-v2-text-text-faint [font-family:Inter,var(--font-family-sans)]"
+                    class="absolute top-0 inset-x-0 px-5 pt-5 pointer-events-none whitespace-nowrap truncate leading-6 text-[14px] font-[440] text-v2-text-text-faint [font-family:Inter,var(--font-family-sans)]"
                     classList={{ "font-mono!": store.mode === "shell", hidden: prompt.dirty() }}
                   >
                     {designPlaceholder()}
                   </div>
                 </div>
               </div>
-              <div class="flex h-11 items-center px-2">
+              <div class="flex h-12 items-center border-t border-[rgba(148,163,184,0.12)] px-3">
                 <div class="flex min-w-0 flex-1 items-center gap-0">
                   {fileAttachmentInput()}
                   <TooltipKeybind
@@ -1560,7 +1560,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                       type="button"
                       icon="plus"
                       variant="ghost"
-                      class="size-7 rounded-md p-[6px] text-v2-icon-icon-muted"
+                      class="size-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/80 p-[6px] text-v2-icon-icon-muted shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
                       style={buttons()}
                       onClick={pick}
                       disabled={store.mode !== "normal"}
@@ -1617,21 +1617,20 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     tabIndex={store.mode === "normal" ? undefined : -1}
                     icon={stopping() ? "stop" : store.mode === "shell" ? "arrow-undo-down" : "arrow-up"}
                     variant="primary"
-                    class="size-7 rounded-md p-[6px] text-v2-icon-icon-muted shadow-[var(--v2-elevation-button-contrast)] disabled:opacity-50"
+                    class="size-9 rounded-xl p-[7px] text-white shadow-[0_14px_28px_rgba(37,99,235,0.28)] disabled:opacity-50"
                     style={{
                       "background-image":
-                        "linear-gradient(180deg,var(--v2-alpha-light-20) 0%,var(--v2-alpha-light-0) 100%),linear-gradient(90deg,var(--v2-background-bg-contrast) 0%,var(--v2-background-bg-contrast) 100%)",
+                        "linear-gradient(180deg,rgba(255,255,255,0.20) 0%,rgba(255,255,255,0.00) 100%),linear-gradient(135deg,#2563eb 0%,#4f46e5 100%)",
                     }}
                     aria-label={stopping() ? language.t("prompt.action.stop") : language.t("prompt.action.send")}
                   />
                 </Tooltip>
               </div>
             </DockShellForm>
-            <Show when={newSession() && selectedProject()}>
-              <div class="flex h-7 min-w-0 items-center gap-0 px-2">
-                <ComposerPicker state={projectPickerState()} />
-              </div>
-            </Show>
+            <div class="flex min-w-0 items-center gap-2 px-2 text-[11px] text-[var(--v2-text-text-faint)]">
+              <span class="rounded-full border border-[rgba(148,163,184,0.16)] bg-transparent px-2 py-1">/ 命令</span>
+              <span class="rounded-full border border-[rgba(148,163,184,0.16)] bg-transparent px-2 py-1">@ 上下文</span>
+            </div>
           </div>
         </Match>
         <Match when>

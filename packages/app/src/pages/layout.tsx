@@ -63,7 +63,6 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
 import { useCommand, type CommandOption } from "@/context/command"
 import { ConstrainDragXAxis, getDraggableId } from "@/utils/solid-dnd"
-import { DebugBar } from "@/components/debug-bar"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { ServerConnection, useServer } from "@/context/server"
 import { useLanguage, type Locale } from "@/context/language"
@@ -131,6 +130,7 @@ export default function Layout(props: ParentProps) {
   const theme = useTheme()
   const language = useLanguage()
   const newDesign = createMemo(() => settings.general.newLayoutDesigns())
+  const useClassicShell = createMemo(() => import.meta.env.VITE_OPENCODE_CLASSIC_SHELL !== "false")
   createEffect(() => setV2Toast(newDesign()))
   const initialDirectory = decode64(params.dir)
   const location = useLocation()
@@ -2094,11 +2094,13 @@ export default function Layout(props: ParentProps) {
     return (
       <div
         classList={{
-          "flex flex-col min-h-0 min-w-0 box-border rounded-tl-[12px] px-3": true,
-          "border border-b-0 border-border-weak-base": !merged(),
-          "border-l border-t border-border-weaker-base": merged(),
-          "bg-background-base": merged() || hover(),
-          "bg-background-stronger": !merged() && !hover(),
+          "flex flex-col min-h-0 min-w-0 box-border rounded-tl-[24px] px-3": true,
+          "border border-b-0 border-[color:var(--v2-border-border-base)]": !merged(),
+          "border-l border-t border-[color:var(--v2-border-border-muted)]": merged(),
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.10)]":
+            merged() || hover(),
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.90)_0%,rgba(241,245,249,0.92)_100%)] shadow-[0_12px_28px_rgba(15,23,42,0.08)]":
+            !merged() && !hover(),
           "flex-1 min-w-0": panelProps.mobile,
           "max-w-full overflow-hidden": panelProps.mobile,
         }}
@@ -2129,8 +2131,8 @@ export default function Layout(props: ParentProps) {
         >
           {(project) => (
             <>
-              <div class="shrink-0 pl-1 py-1">
-                <div class="group/project flex items-start justify-between gap-2 py-2 pl-2 pr-0">
+              <div class="shrink-0 pl-1 py-3">
+                <div class="group/project flex items-start justify-between gap-2 rounded-[20px] border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] px-4 py-3 shadow-[0_14px_30px_rgba(15,23,42,0.08)]">
                   <div class="flex flex-col min-w-0">
                     <InlineEditor
                       id={`project:${projectId()}`}
@@ -2316,7 +2318,8 @@ export default function Layout(props: ParentProps) {
         <div
           class="shrink-0 px-3 py-3"
           classList={{
-            hidden: store.gettingStartedDismissed || !(providers.all().size > 0 && providers.paid().length === 0),
+            // Customer-facing layout hides the onboarding provider card for now.
+            hidden: true,
           }}
         >
           <div class="rounded-xl bg-background-base shadow-xs-border-base" data-component="getting-started">
@@ -2367,7 +2370,7 @@ export default function Layout(props: ParentProps) {
       settingsKeybind={() => command.keybind("settings.open")}
       onOpenSettings={openSettings}
       helpLabel={() => language.t("sidebar.help")}
-      onOpenHelp={() => platform.openLink("https://opencode.ai/desktop-feedback")}
+      onOpenHelp={() => undefined}
       renderPanel={() =>
         mobile ? <SidebarPanel project={currentProject} mobile /> : <SidebarPanel project={currentProject} merged />
       }
@@ -2376,7 +2379,7 @@ export default function Layout(props: ParentProps) {
 
   return (
     <Show
-      when={!newDesign()}
+      when={!newDesign() || useClassicShell()}
       fallback={
         <div class="relative bg-v2-background-bg-deep flex-1 min-h-0 min-w-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
           {autoselecting() ?? ""}
@@ -2386,12 +2389,11 @@ export default function Layout(props: ParentProps) {
               {props.children}
             </Show>
           </main>
-          {import.meta.env.DEV && <DebugBar />}
           <ToastRegion v2={newDesign()} />
         </div>
       }
     >
-      <div class="relative bg-background-base flex-1 min-h-0 min-w-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
+      <div class="relative bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_24%),linear-gradient(180deg,#f8fafc_0%,var(--v2-background-bg-deep)_40%,var(--v2-background-bg-deep)_100%)] flex-1 min-h-0 min-w-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
         {autoselecting() ?? ""}
         <Titlebar update={titlebarUpdate} />
         <Show when={updateVersion() !== undefined}>
@@ -2404,7 +2406,7 @@ export default function Layout(props: ParentProps) {
                 aria-label={language.t("sidebar.nav.projectsAndSessions")}
                 data-component="sidebar-nav-desktop"
                 classList={{
-                  "hidden xl:block": true,
+                  "hidden md:block": true,
                   "absolute inset-y-0 left-0": true,
                   "z-10": true,
                 }}
@@ -2427,7 +2429,7 @@ export default function Layout(props: ParentProps) {
 
               <Show when={layout.sidebar.opened()}>
                 <div
-                  class="hidden xl:block absolute inset-y-0 z-30 w-0 overflow-visible"
+                  class="hidden md:block absolute inset-y-0 z-30 w-0 overflow-visible"
                   style={{ left: `${side()}px` }}
                   onPointerDown={() => setState("sizing", true)}
                 >
@@ -2447,11 +2449,11 @@ export default function Layout(props: ParentProps) {
               </Show>
 
               <div
-                class="hidden xl:block pointer-events-none absolute top-0 right-0 z-0 border-t border-border-weaker-base"
-                style={{ left: "calc(4rem + 12px)" }}
+                class="hidden md:block pointer-events-none absolute top-3 right-4 z-0 rounded-full border border-[rgba(148,163,184,0.14)] bg-white/40 backdrop-blur"
+                style={{ left: "calc(4rem + 18px)", height: "10px" }}
               />
 
-              <div class="xl:hidden">
+              <div class="md:hidden">
                 <div
                   classList={{
                     "fixed inset-x-0 top-10 bottom-0 z-40 transition-opacity duration-200": true,
@@ -2479,7 +2481,7 @@ export default function Layout(props: ParentProps) {
               <div
                 classList={{
                   "absolute inset-0": true,
-                  "xl:inset-y-0 xl:right-0 xl:left-[var(--main-left)]": true,
+                  "md:inset-y-0 md:right-0 md:left-[var(--main-left)]": true,
                   "z-20": true,
                   "transition-[left] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[left] motion-reduce:transition-none":
                     !state.sizing,
@@ -2490,7 +2492,7 @@ export default function Layout(props: ParentProps) {
               >
                 <main
                   classList={{
-                    "size-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base bg-background-base xl:border-l xl:rounded-tl-[12px]": true,
+                    "size-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.94)_100%)] md:border-l md:rounded-tl-[24px] shadow-[0_24px_48px_rgba(15,23,42,0.10)]": true,
                   }}
                 >
                   <Show when={!autoselecting.loading} fallback={<div class="size-full" />}>
@@ -2501,7 +2503,7 @@ export default function Layout(props: ParentProps) {
 
               <div
                 classList={{
-                  "hidden xl:flex absolute inset-y-0 left-16 z-30": true,
+                  "hidden md:flex absolute inset-y-0 left-16 z-30": true,
                   "opacity-100 translate-x-0 pointer-events-auto": state.peeked && !layout.sidebar.opened(),
                   "opacity-0 -translate-x-2 pointer-events-none": !state.peeked || layout.sidebar.opened(),
                   "transition-[opacity,transform] motion-reduce:transition-none": true,
@@ -2525,7 +2527,7 @@ export default function Layout(props: ParentProps) {
 
               <div
                 classList={{
-                  "hidden xl:block pointer-events-none absolute inset-y-0 right-0 z-25 overflow-hidden": true,
+                  "hidden md:block pointer-events-none absolute inset-y-0 right-0 z-25 overflow-hidden": true,
                   "opacity-100 translate-x-0": state.peeked && !layout.sidebar.opened(),
                   "opacity-0 -translate-x-2": !state.peeked || layout.sidebar.opened(),
                   "transition-[opacity,transform] motion-reduce:transition-none": true,
@@ -2538,7 +2540,6 @@ export default function Layout(props: ParentProps) {
               </div>
             </div>
           </div>
-          {import.meta.env.DEV && <DebugBar />}
         </div>
         <ToastRegion v2={newDesign()} />
       </div>

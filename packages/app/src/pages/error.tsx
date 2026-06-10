@@ -352,8 +352,8 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
             {language.t("error.page.report.prefix")}
             <button
               type="button"
-              class="flex items-center text-text-interactive-base gap-1"
-              onClick={() => platform.openLink("https://opencode.ai/desktop-feedback")}
+              class="flex items-center text-text-weak gap-1 cursor-not-allowed opacity-60"
+              disabled
             >
               <div>{language.t("error.page.report.discord")}</div>
               <Icon name="discord" class="text-text-interactive-base" />

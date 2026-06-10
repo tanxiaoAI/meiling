@@ -7,11 +7,12 @@ import { type Platform, PlatformProvider } from "@/context/platform"
 import { dict as en } from "@/i18n/en"
 import { dict as zh } from "@/i18n/zh"
 import { handleNotificationClick } from "@/utils/notification-click"
+import { hasPortalBridgeParams, readPortalBridgeParams, savePortalBridgeState } from "@/utils/portal-bridge"
 import { authFromToken } from "@/utils/server"
 import pkg from "../package.json"
 import { ServerConnection } from "./context/server"
 
-const DEFAULT_SERVER_URL_KEY = "opencode.settings.dat:defaultServerUrl"
+const DEFAULT_SERVER_URL_KEY = "meiling.settings.dat:defaultServerUrl"
 
 const getLocale = () => {
   if (typeof navigator !== "object") return "en" as const
@@ -69,7 +70,7 @@ const notify: Platform["notify"] = async (title, description, href) => {
 
   const notification = new Notification(title, {
     body: description ?? "",
-    icon: "https://opencode.ai/favicon-96x96-v3.png",
+    icon: "/favicon-96x96-v3.png",
   })
 
   notification.onclick = () => {
@@ -100,9 +101,9 @@ if (!(root instanceof HTMLElement) && import.meta.env.DEV) {
 }
 
 const getCurrentUrl = () => {
-  if (location.hostname.includes("opencode.ai")) return "http://localhost:4096"
-  if (import.meta.env.DEV)
+  if (import.meta.env.DEV) {
     return `http://${import.meta.env.VITE_OPENCODE_SERVER_HOST ?? "localhost"}:${import.meta.env.VITE_OPENCODE_SERVER_PORT ?? "4096"}`
+  }
   return location.origin
 }
 
@@ -116,6 +117,10 @@ const clearAuthToken = () => {
   const params = new URLSearchParams(location.search)
   if (!params.has("auth_token")) return
   params.delete("auth_token")
+  params.delete("portal_display_name")
+  params.delete("portal_email")
+  params.delete("portal_base_url")
+  params.delete("portal_logout_url")
   history.replaceState(null, "", location.pathname + (params.size ? `?${params}` : "") + location.hash)
 }
 
@@ -154,14 +159,20 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 }
 
 if (root instanceof HTMLElement) {
+  const portalBridge = readPortalBridgeParams(location.search)
+  if (hasPortalBridgeParams(location.search)) {
+    savePortalBridgeState(portalBridge)
+  }
   const auth = authFromToken(new URLSearchParams(location.search).get("auth_token"))
   clearAuthToken()
   const server: ServerConnection.Http = {
     type: "http",
     authToken: !!auth,
+    displayName: portalBridge.displayName,
     http: {
       url: getCurrentUrl(),
-      ...auth,
+      username: auth?.username || portalBridge.email,
+      password: auth?.password,
     },
   }
   render(

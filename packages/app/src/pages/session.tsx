@@ -268,14 +268,24 @@ export default function Page() {
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
   const size = createSizing()
+  const useClassicShell = createMemo(() => import.meta.env.VITE_OPENCODE_CLASSIC_SHELL !== "false")
   const isV2NewSessionPage = () =>
-    shouldUseV2NewSessionPage({ newLayoutDesigns: newSessionDesign(), sessionID: params.id })
+    !useClassicShell() && shouldUseV2NewSessionPage({ newLayoutDesigns: newSessionDesign(), sessionID: params.id })
   const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened() && !isV2NewSessionPage())
   const desktopFileTreeOpen = createMemo(() => isDesktop() && layout.fileTree.opened() && !isV2NewSessionPage())
   const desktopSidePanelOpen = createMemo(() => desktopReviewOpen() || desktopFileTreeOpen())
+  const classicSidePanelReserve = createMemo(() => {
+    const fileTreeWidth = layout.fileTree.opened() ? layout.fileTree.width() : 0
+    return Math.max(fileTreeWidth + 180, 320)
+  })
   const sessionPanelWidth = createMemo(() => {
     if (!desktopSidePanelOpen()) return "100%"
-    if (desktopReviewOpen()) return `${layout.session.width()}px`
+    if (desktopReviewOpen()) {
+      if (useClassicShell()) {
+        return `min(${layout.session.width()}px, max(360px, calc(100% - ${classicSidePanelReserve()}px)))`
+      }
+      return `${layout.session.width()}px`
+    }
     return `calc(100% - ${layout.fileTree.width()}px)`
   })
   const centered = createMemo(() => isDesktop() && !desktopReviewOpen())
@@ -300,6 +310,18 @@ export default function Page() {
   const openReviewPanel = () => {
     if (!view().reviewPanel.opened()) view().reviewPanel.open()
   }
+
+  let desktopManagementBootstrapped = false
+  createEffect(() => {
+    if (desktopManagementBootstrapped) return
+    if (!params.dir) return
+    if (!isDesktop()) return
+    if (!useClassicShell()) return
+    desktopManagementBootstrapped = true
+    layout.sidebar.open()
+    layout.fileTree.open()
+    view().reviewPanel.open()
+  })
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)

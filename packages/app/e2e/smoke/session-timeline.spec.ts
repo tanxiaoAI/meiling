@@ -69,7 +69,7 @@ async function configureSmokePage(page: Page, directory: string) {
 
   await page.addInitScript((directory) => {
     localStorage.setItem(
-      "opencode.global.dat:server",
+      "meiling.global.dat:server",
       JSON.stringify({
         projects: {
           local: [{ worktree: directory, expanded: true }],

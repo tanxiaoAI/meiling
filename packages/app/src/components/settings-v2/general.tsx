@@ -530,14 +530,7 @@ export const SettingsGeneralV2: Component = () => {
 
         <SettingsRowV2
           title={language.t("settings.general.row.theme.title")}
-          description={
-            <>
-              {language.t("settings.general.row.theme.description")}{" "}
-              <Link class="settings-v2-link" href="https://opencode.ai/docs/themes/">
-                {language.t("common.learnMore")}
-              </Link>
-            </>
-          }
+          description={language.t("settings.general.row.theme.description")}
         >
           <SelectV2
             appearance="inline"

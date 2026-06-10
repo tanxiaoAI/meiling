@@ -27,7 +27,7 @@ const channel = (() => {
 })()
 
 const getBase = (): Configuration => ({
-  artifactName: "opencode-desktop-${os}-${arch}.${ext}",
+  artifactName: "meiling-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
@@ -54,8 +54,8 @@ const getBase = (): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
+    name: "媒灵",
+    schemes: ["meiling"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -85,29 +85,29 @@ function getConfig() {
     case "dev": {
       return {
         ...base,
-        appId: "ai.opencode.desktop.dev",
-        productName: "OpenCode Dev",
-        rpm: { packageName: "opencode-dev" },
+        appId: "ai.meiling.desktop.dev",
+        productName: "媒灵 Dev",
+        rpm: { packageName: "meiling-dev" },
       }
     }
     case "beta": {
       return {
         ...base,
-        appId: "ai.opencode.desktop.beta",
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
+        appId: "ai.meiling.desktop.beta",
+        productName: "媒灵 Beta",
+        protocols: { name: "媒灵 Beta", schemes: ["meiling"] },
         publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
-        rpm: { packageName: "opencode-beta" },
+        rpm: { packageName: "meiling-beta" },
       }
     }
     case "prod": {
       return {
         ...base,
-        appId: "ai.opencode.desktop",
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
+        appId: "ai.meiling.desktop",
+        productName: "媒灵",
+        protocols: { name: "媒灵", schemes: ["meiling"] },
         publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
-        rpm: { packageName: "opencode" },
+        rpm: { packageName: "meiling" },
       }
     }
   }

@@ -1,13 +1,13 @@
 {
   "name": "@opencode-ai/desktop",
   "private": true,
-  "version": "1.16.2",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://opencode.ai",
+  "homepage": "",
   "author": {
-    "name": "OpenCode",
-    "email": "hello@opencode.ai"
+    "name": "媒灵",
+    "email": ""
   },
   "scripts": {
     "typecheck": "tsgo -b",

@@ -9,8 +9,9 @@ import { Font } from "@opencode-ai/ui/font"
 import { Splash } from "@opencode-ai/ui/logo"
 import { ThemeProvider } from "@opencode-ai/ui/theme/context"
 import { MetaProvider } from "@solidjs/meta"
-import { type BaseRouterProps, Navigate, Route, Router } from "@solidjs/router"
+import { type BaseRouterProps, Navigate, Route, Router, useNavigate } from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
+import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Effect } from "effect"
 import {
   type Component,
@@ -44,6 +45,7 @@ import { ServerConnection, ServerProvider, serverName, useServer } from "@/conte
 import { SettingsProvider, useSettings } from "@/context/settings"
 import { TerminalProvider } from "@/context/terminal"
 import { TabsProvider } from "@/context/tabs"
+import { useLayout } from "@/context/layout"
 import DirectoryLayout from "@/pages/directory-layout"
 import Layout from "@/pages/layout"
 import { ErrorPage } from "./pages/error"
@@ -61,6 +63,42 @@ const SessionRoute = Object.assign(
   { preload: Session.preload },
 )
 
+function AppLoadingScreen() {
+  return (
+    <div class="h-dvh w-screen flex flex-col items-center justify-center bg-background-base">
+      <Splash class="w-16 h-20 opacity-50 animate-pulse" />
+    </div>
+  )
+}
+
+function RootEntryRoute() {
+  const server = useServer()
+  const layout = useLayout()
+  const navigate = useNavigate()
+
+  const targetDirectory = createMemo(() => {
+    const configured = import.meta.env.VITE_OPENCODE_DEFAULT_PROJECT_DIR?.trim()
+    return server.projects.last() || server.projects.list()[0]?.worktree || configured
+  })
+
+  createEffect(() => {
+    if (!server.ready()) return
+    const target = targetDirectory()
+    if (!target) return
+    layout.projects.open(target)
+    server.projects.touch(target)
+    navigate(`/${base64Encode(target)}/session`, { replace: true })
+  })
+
+  return (
+    <Show when={server.ready()} fallback={<AppLoadingScreen />}>
+      <Show when={!targetDirectory()} fallback={<AppLoadingScreen />}>
+        <HomeRoute />
+      </Show>
+    </Show>
+  )
+}
+
 function UiI18nBridge(props: ParentProps) {
   const language = useLanguage()
   return <I18nProvider value={{ locale: language.intl, t: language.t }}>{props.children}</I18nProvider>
@@ -68,7 +106,7 @@ function UiI18nBridge(props: ParentProps) {
 
 declare global {
   interface Window {
-    __OPENCODE__?: {
+    __MEILING__?: {
       updaterEnabled?: boolean
       deepLinks?: string[]
       wsl?: boolean
@@ -333,7 +371,7 @@ export function AppInterface(props: {
               </TabsProvider>
             )}
           >
-            <Route path="/" component={HomeRoute} />
+            <Route path="/" component={RootEntryRoute} />
             <Route path="/:dir" component={DirectoryLayout}>
               <Route path="/" component={() => <Navigate href="session" />} />
               <Route path="/session/:id?" component={SessionRoute} />

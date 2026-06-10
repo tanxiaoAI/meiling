@@ -42,7 +42,7 @@ export const ProjectDragOverlay = (props: {
   return (
     <Show when={project()}>
       {(p) => (
-        <div class="bg-background-base rounded-xl p-1">
+        <div class="rounded-[20px] border border-[color:var(--v2-border-border-base)] bg-[var(--v2-background-bg-layer-01)] p-1 shadow-[var(--v2-elevation-floating)]">
           <ProjectIcon project={p()} />
         </div>
       )}
@@ -101,11 +101,13 @@ const ProjectTile = (props: {
         data-action="project-switch"
         data-project={base64Encode(props.project.worktree)}
         classList={{
-          "flex items-center justify-center size-10 p-1 rounded-lg overflow-hidden transition-colors cursor-default": true,
-          "bg-transparent border-2 border-icon-strong-base hover:bg-surface-base-hover": props.selected(),
-          "bg-transparent border border-transparent hover:bg-surface-base-hover hover:border-border-weak-base":
+          "group/project-tile relative flex items-center justify-center size-11 p-1 rounded-[18px] overflow-hidden cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-200": true,
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.92)_100%)] border border-[rgba(37,99,235,0.16)] shadow-[0_10px_24px_rgba(15,23,42,0.10)] -translate-y-px":
+            props.selected(),
+          "bg-transparent border border-transparent hover:bg-[rgba(255,255,255,0.82)] hover:border-[rgba(148,163,184,0.32)]":
             !props.selected() && !props.active(),
-          "bg-surface-base-hover border border-border-weak-base": !props.selected() && props.active(),
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,249,0.92)_100%)] border border-[rgba(148,163,184,0.24)] shadow-[0_10px_20px_rgba(15,23,42,0.08)]":
+            !props.selected() && props.active(),
         }}
         onPointerDown={(event) => {
           if (event.button === 0 && !event.ctrlKey) {
@@ -137,9 +139,11 @@ const ProjectTile = (props: {
         onClick={() => {
           props.setOpen(false)
           if (props.selected()) {
-            layout.sidebar.toggle()
+            layout.sidebar.open()
+            props.navigateToProject(props.project.worktree)
             return
           }
+          layout.sidebar.open()
           props.navigateToProject(props.project.worktree)
         }}
         onBlur={() => props.setOpen(false)}
@@ -197,12 +201,21 @@ const ProjectPreviewPanel = (props: {
   ctx: ProjectSidebarContext
   language: ReturnType<typeof useLanguage>
 }): JSX.Element => (
-  <div class="-m-3 p-2 flex flex-col w-72">
-    <div class="px-4 pt-2 pb-1 flex items-center gap-2">
-      <div class="text-14-medium text-text-strong truncate grow">{displayName(props.project)}</div>
+  <div class="-m-2 w-[296px] rounded-[24px] border border-[rgba(148,163,184,0.22)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] p-3 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur">
+    <div class="rounded-[18px] border border-[rgba(37,99,235,0.10)] bg-[linear-gradient(135deg,rgba(37,99,235,0.10)_0%,rgba(99,102,241,0.08)_100%)] px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#2563eb_0%,#4f46e5_100%)] text-[12px] font-semibold text-white shadow-[0_12px_28px_rgba(37,99,235,0.28)]">
+          {displayName(props.project).slice(0, 1).toUpperCase()}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-[14px] font-semibold text-[var(--v2-text-text-base)] truncate">{displayName(props.project)}</div>
+          <div class="mt-1 text-[12px] text-[var(--v2-text-text-muted)] truncate">
+            {props.language.t("sidebar.project.recentSessions")}
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="px-4 pb-2 text-12-medium text-text-weak">{props.language.t("sidebar.project.recentSessions")}</div>
-    <div class="px-2 pb-2 flex flex-col gap-2">
+    <div class="px-1 pt-3 pb-2 flex flex-col gap-2">
       <Show
         when={props.workspaceEnabled()}
         fallback={
@@ -225,9 +238,9 @@ const ProjectPreviewPanel = (props: {
           {(directory) => {
             const sessions = createMemo(() => props.workspaceSessions(directory))
             return (
-              <div class="flex flex-col gap-1">
+              <div class="flex flex-col gap-1 rounded-[16px] bg-[rgba(255,255,255,0.74)] px-2 py-2">
                 <div class="px-2 py-0.5 flex items-center gap-1 min-w-0">
-                  <div class="shrink-0 size-6 flex items-center justify-center">
+                  <div class="shrink-0 size-6 flex items-center justify-center rounded-full bg-[rgba(37,99,235,0.10)]">
                     <Icon name="branch" size="small" class="text-icon-base" />
                   </div>
                   <span class="truncate text-14-medium text-text-base">{props.label(directory)}</span>
@@ -251,10 +264,10 @@ const ProjectPreviewPanel = (props: {
         </For>
       </Show>
     </div>
-    <div class="px-2 py-2 border-t border-border-weak-base">
+    <div class="px-1 pt-2">
       <Button
         variant="ghost"
-        class="flex w-full text-left justify-start text-text-base px-2 hover:bg-transparent active:bg-transparent"
+        class="flex h-10 w-full justify-start rounded-[14px] border border-[rgba(148,163,184,0.20)] bg-white/80 px-3 text-left text-[13px] font-medium text-[var(--v2-text-text-base)] shadow-[0_8px_20px_rgba(15,23,42,0.06)] hover:bg-white active:bg-white"
         onClick={() => {
           props.ctx.openSidebar()
           props.ctx.onHoverOpenChanged(props.project.worktree, false)

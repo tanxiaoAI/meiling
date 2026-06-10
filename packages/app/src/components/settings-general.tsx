@@ -521,12 +521,7 @@ export const SettingsGeneral: Component = () => {
 
         <SettingsRow
           title={language.t("settings.general.row.theme.title")}
-          description={
-            <>
-              {language.t("settings.general.row.theme.description")}{" "}
-              <Link href="https://opencode.ai/docs/themes/">{language.t("common.learnMore")}</Link>
-            </>
-          }
+          description={language.t("settings.general.row.theme.description")}
         >
           <Select
             data-action="settings-theme"

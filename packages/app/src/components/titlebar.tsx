@@ -414,16 +414,18 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
 
             return (
               <div
-                class="h-full flex-1 overflow-hidden flex flex-row items-center gap-1.5 pr-3 pt-2"
+                class="h-full flex-1 overflow-hidden flex flex-row items-center gap-1.5 border-b border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(248,250,252,0.72)_100%)] pr-3 pt-2 backdrop-blur"
                 classList={{
                   "pl-2": mac(),
                   "pl-4": !mac(),
                 }}
               >
-                <ChannelIndicator />
                 <Show when={windows() || linux()}>
                   <WindowsAppMenu command={command} platform={platform} variant="v2" />
                 </Show>
+                {/*
+                  顶部会话标签、首页方格入口、顶部新建会话按钮先注释保留。
+                  当前产品改为由左侧栏统一承载会话列表与新建对话，避免顶部与侧栏重复导航。
                 <IconButtonV2
                   variant="ghost-muted"
                   size="large"
@@ -511,6 +513,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                     aria-label={language.t("command.session.new")}
                   />
                 </Show>
+                */}
                 <div class="flex-1" />
                 <TitlebarV2Right state={v2RightState()} />
                 <Show when={windows() && !electronWindows()}>
@@ -536,7 +539,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               </Show>
               <Show when={mac()}>
                 {/*<div class="h-full shrink-0" style={{ width: `${72 / zoom()}px` }} />*/}
-                <div class="xl:hidden w-10 shrink-0 flex items-center justify-center">
+                <div class="md:hidden w-10 shrink-0 flex items-center justify-center">
                   <IconButton
                     icon="menu"
                     variant="ghost"
@@ -548,7 +551,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                 </div>
               </Show>
               <Show when={!mac()}>
-                <div class="xl:hidden w-[48px] shrink-0 flex items-center justify-center">
+                <div class="md:hidden w-[48px] shrink-0 flex items-center justify-center">
                   <IconButton
                     icon="menu"
                     variant="ghost"
@@ -561,7 +564,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
               </Show>
               <div class="flex items-center gap-1 shrink-0">
                 <TooltipKeybind
-                  class={web() ? "hidden xl:flex shrink-0 ml-14" : "hidden xl:flex shrink-0 ml-2"}
+                  class={web() ? "hidden md:flex shrink-0 ml-14" : "hidden md:flex shrink-0 ml-2"}
                   placement="bottom"
                   title={language.t("command.sidebar.toggle")}
                   keybind={command.keybind("sidebar.toggle")}
@@ -576,7 +579,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
                     <Icon size="small" name={layout.sidebar.opened() ? "sidebar-active" : "sidebar"} />
                   </Button>
                 </TooltipKeybind>
-                <div class="hidden xl:flex items-center shrink-0">
+                <div class="hidden md:flex items-center shrink-0">
                   <Show when={params.dir}>
                     <div
                       class="flex items-center shrink-0 w-8 mr-1"
@@ -694,7 +697,7 @@ type TitlebarV2RightState = {
 
 function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   return (
-    <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
+    <div class="relative z-20 flex shrink-0 items-center justify-end gap-2 overflow-visible">
       <Show when={props.state.update.visible}>
         <TitlebarUpdateIconButton state={props.state.update} />
       </Show>
@@ -705,19 +708,19 @@ function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
 
 function TitlebarUpdateIconButton(props: { state: TitlebarUpdatePillState }) {
   return (
-    <div class="relative isolate mr-3 size-5 shrink-0">
+    <div class="relative isolate size-6 shrink-0">
       <button
         type="button"
-        class="group absolute right-0 top-0 z-10 flex h-5 w-5 items-center justify-end overflow-hidden rounded-full bg-v2-icon-icon-accent/20 text-v2-icon-icon-accent transition-[width,background-color] duration-150 ease-out hover:z-30 hover:w-[68px] hover:bg-[color-mix(in_srgb,var(--v2-icon-icon-accent)_20%,var(--v2-background-bg-deep))] focus-visible:z-30 focus-visible:w-[68px] focus-visible:bg-[color-mix(in_srgb,var(--v2-icon-icon-accent)_20%,var(--v2-background-bg-deep))] focus-visible:outline-none disabled:opacity-60 motion-reduce:transition-none"
+        class="group absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-end overflow-hidden rounded-full border border-[rgba(59,130,246,0.16)] bg-[linear-gradient(135deg,rgba(59,130,246,0.18)_0%,rgba(99,102,241,0.14)_100%)] text-v2-icon-icon-accent transition-[width,background-color] duration-150 ease-out hover:z-30 hover:w-[72px] hover:bg-[linear-gradient(135deg,rgba(59,130,246,0.22)_0%,rgba(99,102,241,0.18)_100%)] focus-visible:z-30 focus-visible:w-[72px] focus-visible:bg-[linear-gradient(135deg,rgba(59,130,246,0.22)_0%,rgba(99,102,241,0.18)_100%)] focus-visible:outline-none disabled:opacity-60 motion-reduce:transition-none"
         onClick={props.state.onInstall}
         disabled={props.state.installing}
         aria-busy={props.state.installing}
         aria-label={props.state.ariaLabel}
       >
-        <span class="shrink-0 ml-[8px] mr-px text-[11px] text-v2-text-text-accent [font-weight:530] opacity-0 translate-x-2 motion-safe:transition-all duration-150 ease-out group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 motion-reduce:translate-x-0">
+        <span class="shrink-0 ml-[10px] mr-px text-[11px] text-v2-text-text-accent [font-weight:530] opacity-0 translate-x-2 motion-safe:transition-all duration-150 ease-out group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 motion-reduce:translate-x-0">
           Update
         </span>
-        <span class="flex size-5 shrink-0 items-center justify-center">
+        <span class="flex size-6 shrink-0 items-center justify-center">
           <Show
             when={!props.state.installing}
             fallback={<span data-slot="titlebar-update-loader" aria-hidden="true" />}
@@ -894,6 +897,8 @@ function NewSessionTabItem(props: { ref?: HTMLDivElement; href: string; title: s
 }
 
 function ChannelIndicator() {
+  return null
+  /*
   return (
     <>
       {["beta", "dev"].includes(import.meta.env.VITE_OPENCODE_CHANNEL) && (
@@ -903,4 +908,5 @@ function ChannelIndicator() {
       )}
     </>
   )
+  */
 }

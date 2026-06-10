@@ -1,6 +1,9 @@
 interface ImportMetaEnv {
   readonly VITE_OPENCODE_SERVER_HOST: string
   readonly VITE_OPENCODE_SERVER_PORT: string
+  readonly VITE_WORKBENCH_BASE_URL?: string
+  readonly VITE_OPENCODE_DEFAULT_PROJECT_DIR?: string
+  readonly VITE_OPENCODE_CLASSIC_SHELL?: string
   readonly VITE_OPENCODE_CHANNEL?: "dev" | "beta" | "prod"
 
   readonly VITE_SENTRY_DSN?: string
