@@ -47,6 +47,7 @@
 
 This repository is a runnable full-stack product fork used for the `meiling` project.
 It keeps the upstream OpenCode foundation, plus local UI/workbench adjustments and delivery-oriented setup.
+This fork is maintained as a local source repository and no longer carries the legacy container image publishing flow.
 
 ### Quick Start For Local Product Development
 
