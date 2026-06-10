@@ -42,6 +42,7 @@ import { NotificationProvider } from "@/context/notification"
 import { PermissionProvider } from "@/context/permission"
 import { PromptProvider } from "@/context/prompt"
 import { ServerConnection, ServerProvider, serverName, useServer } from "@/context/server"
+import { useServerSync } from "@/context/server-sync"
 import { SettingsProvider, useSettings } from "@/context/settings"
 import { TerminalProvider } from "@/context/terminal"
 import { TabsProvider } from "@/context/tabs"
@@ -73,16 +74,17 @@ function AppLoadingScreen() {
 
 function RootEntryRoute() {
   const server = useServer()
+  const serverSync = useServerSync()
   const layout = useLayout()
   const navigate = useNavigate()
 
   const targetDirectory = createMemo(() => {
     const configured = import.meta.env.VITE_OPENCODE_DEFAULT_PROJECT_DIR?.trim()
-    return server.projects.last() || server.projects.list()[0]?.worktree || configured
+    return server.projects.last() || server.projects.list()[0]?.worktree || serverSync.data.path.directory || configured
   })
 
   createEffect(() => {
-    if (!server.ready()) return
+    if (!server.ready() || !serverSync.ready) return
     const target = targetDirectory()
     if (!target) return
     layout.projects.open(target)

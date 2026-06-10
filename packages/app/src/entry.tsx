@@ -55,6 +55,29 @@ const setStorage = (key: string, value: string | null) => {
 const readDefaultServerUrl = () => getStorage(DEFAULT_SERVER_URL_KEY)
 const writeDefaultServerUrl = (url: string | null) => setStorage(DEFAULT_SERVER_URL_KEY, url)
 
+const normalizeUrl = (value: string) => {
+  try {
+    return new URL(value)
+  } catch {
+    return undefined
+  }
+}
+
+const isLoopbackHost = (host: string) => host === "localhost" || host === "127.0.0.1"
+
+const resolveDevServerUrl = () => {
+  const host = import.meta.env.VITE_OPENCODE_SERVER_HOST ?? "localhost"
+  const configuredPort = import.meta.env.VITE_OPENCODE_SERVER_PORT?.trim()
+  const currentHost = typeof location === "object" ? location.hostname : host
+  const currentPort = typeof location === "object" ? location.port : ""
+
+  if (currentPort === "4444" && isLoopbackHost(currentHost) && configuredPort === "4300") {
+    return `http://${host}:4096`
+  }
+
+  return `http://${host}:${configuredPort || "4096"}`
+}
+
 const notify: Platform["notify"] = async (title, description, href) => {
   if (!("Notification" in window)) return
 
@@ -102,15 +125,32 @@ if (!(root instanceof HTMLElement) && import.meta.env.DEV) {
 
 const getCurrentUrl = () => {
   if (import.meta.env.DEV) {
-    return `http://${import.meta.env.VITE_OPENCODE_SERVER_HOST ?? "localhost"}:${import.meta.env.VITE_OPENCODE_SERVER_PORT ?? "4096"}`
+    return resolveDevServerUrl()
   }
   return location.origin
 }
 
 const getDefaultUrl = () => {
   const lsDefault = readDefaultServerUrl()
-  if (lsDefault) return lsDefault
-  return getCurrentUrl()
+  const currentUrl = getCurrentUrl()
+  if (!lsDefault) return currentUrl
+
+  if (import.meta.env.DEV) {
+    const stored = normalizeUrl(lsDefault)
+    const current = normalizeUrl(currentUrl)
+    if (
+      stored &&
+      current &&
+      isLoopbackHost(stored.hostname) &&
+      isLoopbackHost(current.hostname) &&
+      stored.port !== current.port
+    ) {
+      writeDefaultServerUrl(currentUrl)
+      return currentUrl
+    }
+  }
+
+  return lsDefault
 }
 
 const clearAuthToken = () => {

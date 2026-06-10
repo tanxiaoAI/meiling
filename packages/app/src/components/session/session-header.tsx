@@ -527,7 +527,7 @@ type SessionHeaderV2ActionsState = {
 
 function SessionHeaderV2Actions(props: { state: SessionHeaderV2ActionsState }) {
   return (
-    <div class="flex min-w-0 items-center gap-1.5 pr-1">
+    <div class="flex min-w-[84px] shrink-0 items-center justify-end gap-1 pr-1">
       <Show when={props.state.statusVisible}>
         <Tooltip placement="bottom" value={props.state.statusLabel}>
           <StatusPopoverV2 />
@@ -562,7 +562,7 @@ function SessionAccountMenu(props: { v2?: boolean }) {
 
   const triggerClass = () =>
     props.v2
-      ? "flex h-8 shrink-0 items-center gap-1 rounded-full border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,250,252,0.88)_100%)] px-1 pr-1.5 text-[13px] text-v2-text-text-base shadow-[0_8px_20px_rgba(15,23,42,0.06)] transition hover:bg-white data-[expanded]:bg-white"
+      ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(248,250,252,0.90)_100%)] text-[13px] text-v2-text-text-base shadow-[0_8px_20px_rgba(15,23,42,0.06)] transition hover:bg-white data-[expanded]:bg-white"
       : "flex h-8 shrink-0 items-center gap-2 rounded-lg border border-border-weak-base bg-surface-panel px-2.5 text-12-regular text-text-strong transition hover:bg-surface-raised-base-hover data-[expanded]:bg-surface-raised-base-active"
 
   return (
@@ -579,14 +579,15 @@ function SessionAccountMenu(props: { v2?: boolean }) {
         <Show when={!props.v2}>
           <span class="hidden max-w-28 truncate text-left md:block">{nickname()}</span>
         </Show>
-        <Icon
-          name="chevron-down"
-          size="small"
-          classList={{
-            "text-icon-weak": true,
-            "mr-0.5": props.v2,
-          }}
-        />
+        <Show when={!props.v2}>
+          <Icon
+            name="chevron-down"
+            size="small"
+            classList={{
+              "text-icon-weak": true,
+            }}
+          />
+        </Show>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content class="min-w-[240px]">

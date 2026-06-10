@@ -6,6 +6,7 @@ import { createEffect, createMemo, createResource, type ParentProps, Show } from
 import { useLanguage } from "@/context/language"
 import { LocalProvider } from "@/context/local"
 import { SDKProvider } from "@/context/sdk"
+import { useServerSync } from "@/context/server-sync"
 import { useSync } from "@/context/sync"
 import { decode64 } from "@/utils/base64"
 import { Schema } from "effect"
@@ -15,6 +16,7 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   const navigate = useNavigate()
   const params = useParams()
   const sync = useSync()
+  const serverSync = useServerSync()
   const slug = createMemo(() => base64Encode(props.directory))
 
   createEffect(() => {
@@ -22,6 +24,15 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
     if (!next || next === props.directory) return
     const path = location.pathname.slice(slug().length + 1)
     navigate(`/${base64Encode(next)}${path}${location.search}${location.hash}`, { replace: true })
+  })
+
+  createEffect(() => {
+    const globalDirectory = serverSync.data.path.directory
+    if (!globalDirectory || globalDirectory === props.directory) return
+    if (!props.directory.startsWith("/Users/")) return
+    if (globalDirectory !== "/workspace") return
+    const path = location.pathname.slice(slug().length + 1)
+    navigate(`/${base64Encode(globalDirectory)}${path}${location.search}${location.hash}`, { replace: true })
   })
 
   createResource(
