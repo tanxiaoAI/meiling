@@ -394,7 +394,7 @@ export function SessionSidePanel(props: {
                           <IconButton
                             icon="sidebar-right"
                             variant="ghost"
-                            class="h-8 w-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/80"
+                            class="h-8 w-8 rounded-xl border border-[rgba(148,163,184,0.22)] bg-white text-[var(--v2-text-text-base)] shadow-[0_6px_16px_rgba(15,23,42,0.06)] hover:bg-[rgba(248,250,252,0.98)]"
                             onClick={() => view().reviewPanel.toggle()}
                             aria-label={language.t("command.review.toggle")}
                             aria-expanded={view().reviewPanel.opened()}
