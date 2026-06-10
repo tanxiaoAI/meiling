@@ -1466,7 +1466,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               data-component={newSession() ? "session-new-composer" : "session-composer"}
               onSubmit={handleSubmit}
               classList={{
-                "group/prompt-input min-h-[104px] w-full rounded-[22px] border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.94)_100%)] shadow-[0_24px_48px_rgba(15,23,42,0.10)] backdrop-blur": true,
+                "group/prompt-input min-h-[112px] w-full rounded-[26px] border border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(248,250,252,0.96)_56%,rgba(241,245,249,0.94)_100%)] shadow-[0_20px_44px_rgba(15,23,42,0.08)] backdrop-blur": true,
                 "border-icon-info-active border-dashed": store.draggingType !== null,
                 [props.class ?? ""]: !!props.class,
               }}
@@ -1499,7 +1499,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 removeLabel={language.t("prompt.attachment.remove")}
               />
               <div
-                class="relative min-h-[52px]"
+                class="relative min-h-[56px]"
                 onMouseDown={(e) => {
                   const target = e.target
                   if (!(target instanceof HTMLElement)) return
@@ -1507,7 +1507,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   editorRef?.focus()
                 }}
               >
-                <div class="relative max-h-[180px] overflow-y-auto no-scrollbar" ref={(el) => (scrollRef = el)}>
+                <div class="relative max-h-[184px] overflow-y-auto no-scrollbar" ref={(el) => (scrollRef = el)}>
                   <div
                     data-component="prompt-input"
                     ref={(el) => {
@@ -1532,7 +1532,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     onKeyDown={handleKeyDown}
                     classList={{
                       "select-text": true,
-                      "min-h-[56px] w-full px-5 pt-5 pb-2 focus:outline-none whitespace-pre-wrap leading-6 text-[14px] font-[440] text-v2-text-text-base": true,
+                      "min-h-[60px] w-full px-5 pt-5 pb-2 focus:outline-none whitespace-pre-wrap leading-6 text-[14px] font-[440] text-v2-text-text-base": true,
                       "[&_[data-type=file]]:text-syntax-property": true,
                       "[&_[data-type=agent]]:text-syntax-type": true,
                       "font-mono!": store.mode === "shell",
@@ -1540,14 +1540,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   />
                   <div
                     data-component={newSession() ? "session-new-design-text" : "session-composer-text"}
-                    class="absolute top-0 inset-x-0 px-5 pt-5 pointer-events-none whitespace-nowrap truncate leading-6 text-[14px] font-[440] text-v2-text-text-faint [font-family:Inter,var(--font-family-sans)]"
+                    class="absolute top-0 inset-x-0 px-5 pt-5 pointer-events-none whitespace-nowrap truncate leading-6 text-[13px] font-[440] tracking-[0.01em] text-[rgba(100,116,139,0.92)] [font-family:Inter,var(--font-family-sans)]"
                     classList={{ "font-mono!": store.mode === "shell", hidden: prompt.dirty() }}
                   >
                     {designPlaceholder()}
                   </div>
                 </div>
               </div>
-              <div class="flex h-12 items-center border-t border-[rgba(148,163,184,0.12)] px-3">
+              <div class="flex h-12 items-center border-t border-[rgba(148,163,184,0.10)] px-3">
                 <div class="flex min-w-0 flex-1 items-center gap-0">
                   {fileAttachmentInput()}
                   <TooltipKeybind
@@ -1560,7 +1560,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                       type="button"
                       icon="plus"
                       variant="ghost"
-                      class="size-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/80 p-[6px] text-v2-icon-icon-muted shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
+                      class="size-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/88 p-[6px] text-v2-icon-icon-muted shadow-[0_10px_22px_rgba(15,23,42,0.05)]"
                       style={buttons()}
                       onClick={pick}
                       disabled={store.mode !== "normal"}
@@ -1570,9 +1570,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   </TooltipKeybind>
                   <Show when={showAgentControl()}>
                     <ComposerAgentControl state={agentControlState()} />
-                  </Show>
-                  <Show when={newSession() && !selectedProject()}>
-                    <ComposerPickerTrigger state={newProjectTriggerState()} />
                   </Show>
                   <ComposerModelControl state={modelControlState()} />
                   <Show when={store.mode !== "shell" && showVariantControl()}>
@@ -1627,9 +1624,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 </Tooltip>
               </div>
             </DockShellForm>
-            <div class="flex min-w-0 items-center gap-2 px-2 text-[11px] text-[var(--v2-text-text-faint)]">
-              <span class="rounded-full border border-[rgba(148,163,184,0.16)] bg-transparent px-2 py-1">/ 命令</span>
-              <span class="rounded-full border border-[rgba(148,163,184,0.16)] bg-transparent px-2 py-1">@ 上下文</span>
+            <div class="flex min-w-0 items-center gap-2 px-2 text-[11px] text-[rgba(100,116,139,0.92)]">
+              <span class="rounded-full border border-[rgba(148,163,184,0.14)] bg-[rgba(255,255,255,0.68)] px-2.5 py-1 font-mono tracking-[-0.01em] shadow-[0_4px_12px_rgba(15,23,42,0.03)]">
+                /命令
+              </span>
+              <span class="rounded-full border border-[rgba(148,163,184,0.14)] bg-[rgba(255,255,255,0.68)] px-2.5 py-1 font-mono tracking-[-0.01em] shadow-[0_4px_12px_rgba(15,23,42,0.03)]">
+                @上下文
+              </span>
             </div>
           </div>
         </Match>

@@ -414,7 +414,7 @@ export function Titlebar(props: { update?: TitlebarUpdate }) {
 
             return (
               <div
-                class="h-full flex-1 overflow-visible flex flex-row items-center gap-1.5 border-b border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(248,250,252,0.72)_100%)] pr-3 pt-2 backdrop-blur"
+                class="h-full flex-1 overflow-visible flex flex-row items-center gap-1.5 border-b border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(248,250,252,0.72)_100%)] pr-3 backdrop-blur"
                 classList={{
                   "pl-2": mac(),
                   "pl-4": !mac(),
@@ -697,11 +697,11 @@ type TitlebarV2RightState = {
 
 function TitlebarV2Right(props: { state: TitlebarV2RightState }) {
   return (
-    <div class="relative z-20 flex min-w-[112px] shrink-0 items-center justify-end gap-1.5 overflow-visible pl-2">
+    <div class="relative z-20 flex min-w-[156px] shrink-0 items-center justify-end gap-1.5 overflow-visible pl-2">
       <Show when={props.state.update.visible}>
         <TitlebarUpdateIconButton state={props.state.update} />
       </Show>
-      <div id="opencode-titlebar-right" class="flex min-w-[80px] shrink-0 items-center justify-end gap-1" />
+      <div id="opencode-titlebar-right" class="flex min-w-[112px] shrink-0 items-center justify-end gap-1" />
     </div>
   )
 }

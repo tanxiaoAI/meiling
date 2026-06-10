@@ -323,6 +323,16 @@ export default function Page() {
     view().reviewPanel.open()
   })
 
+  let desktopSidebarBootstrapped = false
+  createEffect(() => {
+    if (desktopSidebarBootstrapped) return
+    if (!params.dir) return
+    if (!isDesktop()) return
+    if (!newSessionDesign() || useClassicShell()) return
+    desktopSidebarBootstrapped = true
+    layout.sidebar.open()
+  })
+
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)
   const diffs = createMemo(() => (params.id ? list(sync.data.session_diff[params.id]) : []))

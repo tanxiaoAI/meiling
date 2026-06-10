@@ -3,6 +3,7 @@ import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { IconButton } from "@opencode-ai/ui/icon-button"
+import { Icon } from "@opencode-ai/ui/icon"
 import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Mark } from "@opencode-ai/ui/logo"
@@ -105,7 +106,7 @@ export function SessionSidePanel(props: {
       <div class="flex-1 pb-40 px-6 flex items-center justify-center text-center">
         <div class="w-full max-w-56 rounded-[20px] border border-[rgba(148,163,184,0.18)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.92)_100%)] p-5 shadow-[0_14px_32px_rgba(15,23,42,0.08)]">
           <div class="mx-auto flex size-10 items-center justify-center rounded-[14px] bg-[rgba(37,99,235,0.10)] text-[var(--v2-text-text-accent)]">
-            <Icon name="file" size="small" />
+            <Icon name="folder" size="small" />
           </div>
           <div class="mt-3 text-[13px] font-medium text-[var(--v2-text-text-base)]">文件工作区</div>
           <div class="mt-2 text-12-regular text-text-weak">{msg}</div>
@@ -248,9 +249,9 @@ export function SessionSidePanel(props: {
                         <Show when={!shown()}>
                           <TooltipKeybind title={language.t("command.review.toggle")} keybind={command.keybind("review.toggle")}>
                             <IconButton
-                              icon="sidebar-right"
+                              icon="layout-right"
                               variant="ghost"
-                              class="h-8 w-8 rounded-xl border border-[rgba(148,163,184,0.14)] bg-white/80"
+                              class="h-8 w-8 rounded-xl border border-[rgba(71,85,105,0.36)] bg-[rgba(255,255,255,0.98)] shadow-[0_8px_18px_rgba(15,23,42,0.12)] hover:bg-white [&_[data-slot=icon-svg]]:text-slate-800"
                               onClick={() => view().reviewPanel.toggle()}
                               aria-label={language.t("command.review.toggle")}
                               aria-expanded={view().reviewPanel.opened()}
@@ -392,9 +393,9 @@ export function SessionSidePanel(props: {
                         </div>
                         <TooltipKeybind title={language.t("command.review.toggle")} keybind={command.keybind("review.toggle")}>
                           <IconButton
-                            icon="sidebar-right"
+                            icon="layout-right"
                             variant="ghost"
-                            class="h-8 w-8 rounded-xl border border-[rgba(100,116,139,0.28)] bg-[rgba(255,255,255,0.98)] text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.10)] hover:bg-white"
+                            class="h-8 w-8 rounded-xl border border-[rgba(71,85,105,0.36)] bg-[rgba(255,255,255,0.98)] text-slate-800 shadow-[0_8px_18px_rgba(15,23,42,0.12)] hover:bg-white [&_[data-slot=icon-svg]]:text-slate-800"
                             onClick={() => view().reviewPanel.toggle()}
                             aria-label={language.t("command.review.toggle")}
                             aria-expanded={view().reviewPanel.opened()}

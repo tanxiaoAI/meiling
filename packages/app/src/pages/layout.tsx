@@ -554,9 +554,12 @@ export default function Layout(props: ParentProps) {
 
     const meta = serverSync.data.project.find((p) => p.id === id)
     const root = meta?.worktree
-    if (!root) return
+    if (!root) {
+      const active = store.activeProject ? projects.find((p) => pathKey(p.worktree) === pathKey(store.activeProject!)) : undefined
+      return active ?? projects[0]
+    }
 
-    return projects.find((p) => p.worktree === root)
+    return projects.find((p) => p.worktree === root) ?? projects[0]
   })
 
   const [autoselecting] = createResource(async () => {
@@ -1836,8 +1839,8 @@ export default function Layout(props: ParentProps) {
     )
   })
 
-  const side = createMemo(() => Math.max(layout.sidebar.width(), 244))
-  const panel = createMemo(() => Math.max(side() - 64, 0))
+  const side = createMemo(() => (layout.sidebar.opened() ? Math.max(layout.sidebar.width(), 244) : 64))
+  const panel = createMemo(() => (layout.sidebar.opened() ? Math.max(side() - 64, 0) : 0))
 
   const loadedSessionDirs = new Set<string>()
 
