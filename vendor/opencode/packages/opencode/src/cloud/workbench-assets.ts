@@ -163,7 +163,12 @@ async function replaceWithCopy(source: string, target: string) {
   }).catch(() => {})
   // #endregion
   await fs.rm(target, { recursive: true, force: true })
-  const stat = await fs.stat(source)
+  let stat
+  try {
+    stat = await fs.stat(source)
+  } catch {
+    return
+  }
   if (stat.isDirectory()) {
     await fs.cp(source, target, { recursive: true })
     // #region debug-point E:replace-with-copy-dir-done
