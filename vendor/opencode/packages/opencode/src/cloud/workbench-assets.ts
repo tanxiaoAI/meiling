@@ -147,64 +147,14 @@ function userContextPath(packDirectory: string) {
 }
 
 async function replaceWithCopy(source: string, target: string) {
-  // #region debug-point E:replace-with-copy-start
-  void fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "E",
-      location: "vendor/opencode/packages/opencode/src/cloud/workbench-assets.ts",
-      msg: "[DEBUG] replaceWithCopy start",
-      data: { source, target },
-      ts: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
   await fs.rm(target, { recursive: true, force: true })
-  let stat
-  try {
-    stat = await fs.stat(source)
-  } catch {
-    return
-  }
+  const stat = await fs.stat(source)
   if (stat.isDirectory()) {
     await fs.cp(source, target, { recursive: true })
-    // #region debug-point E:replace-with-copy-dir-done
-    void fetch("http://127.0.0.1:7780/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "login-freeze-crash",
-        runId: "pre-fix",
-        hypothesisId: "E",
-        location: "vendor/opencode/packages/opencode/src/cloud/workbench-assets.ts",
-        msg: "[DEBUG] replaceWithCopy dir done",
-        data: { source, target },
-        ts: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     return
   }
   await ensureDir(path.dirname(target))
   await fs.copyFile(source, target)
-  // #region debug-point E:replace-with-copy-file-done
-  void fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "E",
-      location: "vendor/opencode/packages/opencode/src/cloud/workbench-assets.ts",
-      msg: "[DEBUG] replaceWithCopy file done",
-      data: { source, target },
-      ts: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
 }
 
 async function isExpectedSymlink(target: string, source: string) {
@@ -227,14 +177,13 @@ async function replaceWithSymlink(source: string, target: string) {
 
 async function assertFixedSource(root: string) {
   if (!(await exists(root))) {
-    console.warn(`Missing Meiling fixed asset source: ${root}`)
-    return
+    throw new Error(`Missing Meiling fixed asset source: ${root}`)
   }
 
   for (const name of [...FIXED_FILES, ...FIXED_DIRS]) {
     const target = path.join(root, name)
     if (!(await exists(target))) {
-      console.warn(`Missing Meiling asset: ${target}`)
+      throw new Error(`Missing Meiling asset: ${target}`)
     }
   }
 }

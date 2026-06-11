@@ -47,6 +47,7 @@ export default [
   solidPlugin(),
   {
     name: "fix-esbuild-jsx",
+    enforce: "post",
     config() {
       return {
         esbuild: {
