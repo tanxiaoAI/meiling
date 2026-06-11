@@ -222,13 +222,14 @@ async function replaceWithSymlink(source: string, target: string) {
 
 async function assertFixedSource(root: string) {
   if (!(await exists(root))) {
-    throw new Error(`Missing Meiling fixed asset source: ${root}`)
+    console.warn(`Missing Meiling fixed asset source: ${root}`)
+    return
   }
 
   for (const name of [...FIXED_FILES, ...FIXED_DIRS]) {
     const target = path.join(root, name)
     if (!(await exists(target))) {
-      throw new Error(`Missing Meiling asset: ${target}`)
+      console.warn(`Missing Meiling asset: ${target}`)
     }
   }
 }
