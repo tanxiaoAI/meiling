@@ -1,0 +1,97 @@
+import { redirect } from "next/navigation";
+
+import { getSessionUser } from "@/lib/session";
+
+const errorMap: Record<string, string> = {
+  invalid: "账号或密码不正确，请检查后重试。",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const user = await getSessionUser();
+  const resolvedSearchParams = await searchParams;
+
+  if (user) {
+    redirect("/workspace");
+  }
+
+  const errorMessage = resolvedSearchParams.error ? errorMap[resolvedSearchParams.error] || "登录失败，请稍后再试。" : null;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="bg-slate-950 px-8 py-10 text-white lg:px-10">
+          <p className="text-sm font-medium text-sky-300">AI 自媒体 SaaS</p>
+          <h1 className="mt-3 text-4xl font-semibold leading-tight">先从门户登录，再进入你的对话工作台</h1>
+          <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300">
+            这一版采用运营手动发放账号的方式交付客户，不做自助注册，不做短信验证码，不做邮箱验证码。
+          </p>
+          <div className="mt-8 space-y-4 text-sm text-slate-300">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="font-semibold text-white">客户能看到什么</p>
+              <p className="mt-2">登录后的对话工作台、固定功能入口、任务记录和可见文件资产。</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="font-semibold text-white">客户看不到什么</p>
+              <p className="mt-2">方法论、提示词、skills、系统内部目录和任何核心私有资产。</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="px-8 py-10 lg:px-10">
+          <div className="max-w-md">
+            <p className="text-sm font-medium text-sky-600">账号登录</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">登录客户门户</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">请输入运营发给你的账号和密码。登录成功后会直接进入对话工作台，不支持在线注册。</p>
+          </div>
+
+          <form action="/api/auth/login" method="post" className="mt-8 space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-slate-700">账号</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="demo@aimedia.local"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-slate-700">密码</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                placeholder="请输入密码"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+              />
+            </div>
+
+            {errorMessage ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div>
+            ) : null}
+
+            <button
+              type="submit"
+              className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              登录并进入对话工作台
+            </button>
+          </form>
+
+          <div className="mt-8 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+            <p className="font-semibold text-slate-900">演示账号</p>
+            <p className="mt-2">账号：demo@aimedia.local</p>
+            <p>密码：Demo123456</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
