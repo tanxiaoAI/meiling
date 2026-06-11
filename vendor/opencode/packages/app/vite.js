@@ -28,6 +28,10 @@ export default [
         define: {
           "import.meta.env.VITE_OPENCODE_CHANNEL": JSON.stringify(channel),
         },
+        esbuild: {
+          jsx: "automatic",
+          jsxImportSource: "solid-js",
+        },
         worker: {
           format: "es",
         },
