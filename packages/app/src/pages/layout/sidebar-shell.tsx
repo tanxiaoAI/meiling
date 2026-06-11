@@ -14,6 +14,7 @@ import { type LocalProject } from "@/context/layout"
 
 export const SidebarContent = (props: {
   mobile?: boolean
+  singleProjectMode?: boolean
   opened: Accessor<boolean>
   aimMove: (event: MouseEvent) => void
   projects: Accessor<LocalProject[]>
@@ -50,11 +51,12 @@ export const SidebarContent = (props: {
 
   return (
     <div class="flex h-full w-full min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.05),transparent_24%),var(--v2-background-bg-deep)]">
-      <div
-        data-component="sidebar-rail"
-        class="w-16 shrink-0 flex flex-col items-center overflow-hidden border-r border-[color:var(--v2-border-border-muted)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--v2-background-bg-layer-01)_92%,white)_0%,var(--v2-background-bg-deep)_100%)]"
-        onMouseMove={props.aimMove}
-      >
+      <Show when={!props.singleProjectMode}>
+        <div
+          data-component="sidebar-rail"
+          class="w-16 shrink-0 flex flex-col items-center overflow-hidden border-r border-[color:var(--v2-border-border-muted)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--v2-background-bg-layer-01)_92%,white)_0%,var(--v2-background-bg-deep)_100%)]"
+          onMouseMove={props.aimMove}
+        >
         <div class="shrink-0 w-full px-2 pt-3 pb-3 flex flex-col items-center gap-3">
           <div class="flex w-full flex-col items-center gap-2 rounded-[22px] border border-[color:var(--v2-border-border-base)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.94)_100%)] px-2 py-3 shadow-[var(--v2-elevation-raised)] backdrop-blur">
             <div class="flex size-10 items-center justify-center rounded-[16px] border border-[rgba(37,99,235,0.10)] bg-[rgba(239,246,255,0.95)] text-[13px] font-semibold text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
@@ -138,7 +140,8 @@ export const SidebarContent = (props: {
           </Tooltip>
           </div>
         </div>
-      </div>
+        </div>
+      </Show>
 
       <div
         ref={(el) => {

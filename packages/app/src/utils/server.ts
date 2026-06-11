@@ -19,9 +19,15 @@ export function authFromToken(token: string | null) {
 
 export function createSdkForServer({
   server,
+  portalUser,
+  portalPackKey,
+  portalPackVersion,
   ...config
 }: Omit<NonNullable<Parameters<typeof createOpencodeClient>[0]>, "baseUrl"> & {
   server: ServerConnection.HttpBase
+  portalUser?: string
+  portalPackKey?: string
+  portalPackVersion?: string
 }) {
   const auth = (() => {
     if (!server.password) return
@@ -35,6 +41,9 @@ export function createSdkForServer({
     headers: {
       ...(config.headers instanceof Headers ? Object.fromEntries(config.headers.entries()) : config.headers),
       ...auth,
+      ...(portalUser ? { "x-portal-user": portalUser } : {}),
+      ...(portalPackKey ? { "x-portal-pack-key": portalPackKey } : {}),
+      ...(portalPackVersion ? { "x-portal-pack-version": portalPackVersion } : {}),
     },
     baseUrl: server.url,
   })

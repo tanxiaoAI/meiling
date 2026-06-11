@@ -217,6 +217,19 @@ export function SessionHeader() {
     focusTerminalById(id)
   }
 
+  const openSettingsPanel = () => {
+    command.trigger("settings.open", "palette")
+  }
+
+  const openHelpCenter = () => {
+    const url = "https://opencode.ai/docs"
+    if (platform.openLink) {
+      platform.openLink(url)
+      return
+    }
+    window.open(url, "_blank")
+  }
+
   const [prefs, setPrefs] = persisted(Persist.global("open.app"), createStore({ app: "finder" as OpenApp }))
   const [menu, setMenu] = createStore({ open: false })
   const [openRequest, setOpenRequest] = createStore({
@@ -237,6 +250,11 @@ export function SessionHeader() {
   const v2ActionsState = createMemo<SessionHeaderV2ActionsState>(() => ({
     statusVisible: status(),
     statusLabel: language.t("status.popover.trigger"),
+    openSettings: openSettingsPanel,
+    openHelp: openHelpCenter,
+    settingsLabel: language.t("command.settings.open"),
+    settingsKeybind: command.keybind("settings.open"),
+    helpLabel: language.t("sidebar.help"),
   }))
 
   const selectApp = (app: OpenApp) => {
@@ -439,6 +457,29 @@ export function SessionHeader() {
                     </div>
                   </Show>
                   <div class="flex items-center gap-1">
+                    <TooltipKeybind
+                      title={language.t("command.settings.open")}
+                      keybind={command.keybind("settings.open")}
+                    >
+                      <Button
+                        variant="ghost"
+                        class="titlebar-icon w-8 h-6 p-0 box-border shrink-0"
+                        onClick={openSettingsPanel}
+                        aria-label={language.t("command.settings.open")}
+                      >
+                        <Icon size="small" name="settings-gear" />
+                      </Button>
+                    </TooltipKeybind>
+                    <Tooltip placement="bottom" value={language.t("sidebar.help")}>
+                      <Button
+                        variant="ghost"
+                        class="titlebar-icon w-8 h-6 p-0 box-border shrink-0"
+                        onClick={openHelpCenter}
+                        aria-label={language.t("sidebar.help")}
+                      >
+                        <Icon size="small" name="help" />
+                      </Button>
+                    </Tooltip>
                     <Show when={status()}>
                       <Tooltip placement="bottom" value={language.t("status.popover.trigger")}>
                         <StatusPopover />
@@ -521,6 +562,11 @@ export function SessionHeader() {
 }
 
 type SessionHeaderV2ActionsState = {
+  openHelp: () => void
+  openSettings: () => void
+  settingsKeybind?: string
+  settingsLabel: string
+  helpLabel: string
   statusVisible: boolean
   statusLabel: string
 }
@@ -528,6 +574,26 @@ type SessionHeaderV2ActionsState = {
 function SessionHeaderV2Actions(props: { state: SessionHeaderV2ActionsState }) {
   return (
     <div class="flex min-w-[116px] shrink-0 items-center justify-end gap-2 pr-1">
+      <TooltipKeybind title={props.state.settingsLabel} keybind={props.state.settingsKeybind ?? ""}>
+        <Button
+          variant="ghost"
+          class="titlebar-icon w-8 h-6 p-0 box-border shrink-0"
+          onClick={props.state.openSettings}
+          aria-label={props.state.settingsLabel}
+        >
+          <Icon size="small" name="settings-gear" />
+        </Button>
+      </TooltipKeybind>
+      <Tooltip placement="bottom" value={props.state.helpLabel}>
+        <Button
+          variant="ghost"
+          class="titlebar-icon w-8 h-6 p-0 box-border shrink-0"
+          onClick={props.state.openHelp}
+          aria-label={props.state.helpLabel}
+        >
+          <Icon size="small" name="help" />
+        </Button>
+      </Tooltip>
       <Show when={props.state.statusVisible}>
         <Tooltip placement="bottom" value={props.state.statusLabel}>
           <StatusPopoverV2 />
@@ -554,10 +620,11 @@ function SessionAccountMenu(props: { v2?: boolean }) {
   const avatarText = createMemo(() => nickname().trim().slice(0, 1).toUpperCase() || "A")
 
   const logout = () => {
+    const logoutUrl = resolvePortalLogoutUrl()
     removePersisted(Persist.global("server", ["server.v3"]), platform)
     void platform.setDefaultServer?.(null)
     clearPortalBridgeState()
-    window.location.replace(resolvePortalLogoutUrl())
+    window.location.replace(logoutUrl)
   }
 
   const triggerClass = () =>

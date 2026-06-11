@@ -3,8 +3,9 @@ import { showToast } from "@/utils/toast"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Binary } from "@opencode-ai/core/util/binary"
 import { useNavigate, useParams } from "@solidjs/router"
-import { batch, type Accessor } from "solid-js"
+import { batch, onCleanup, type Accessor } from "solid-js"
 import type { FileSelection } from "@/context/file"
+import { useServerSDK } from "@/context/server-sdk"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
@@ -21,11 +22,41 @@ import { formatServerError } from "@/utils/server-errors"
 import { ScopedKey } from "@/utils/server-scope"
 
 type PendingPrompt = {
+  scope: string
+  sessionID: string
   abort: AbortController
   cleanup: VoidFunction
+  onAbort?: () => Promise<unknown> | void
 }
 
 const pending = new Map<string, PendingPrompt>()
+const PROMPT_TIMEOUT_MS = 60_000
+
+class PromptTimeoutError extends Error {
+  constructor() {
+    super("AI response timeout")
+    this.name = "PromptTimeoutError"
+  }
+}
+
+class StreamConnectionLostError extends Error {
+  constructor() {
+    super("AI event stream connection lost")
+    this.name = "StreamConnectionLostError"
+  }
+}
+
+function createPendingPrompt(input: PendingPrompt): PendingPrompt {
+  let cleaned = false
+  return {
+    ...input,
+    cleanup: () => {
+      if (cleaned) return
+      cleaned = true
+      input.cleanup()
+    },
+  }
+}
 
 export type FollowupDraft = {
   sessionID: string
@@ -153,13 +184,22 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       return false
     }
 
-    await input.client.session.promptAsync({
-      sessionID: input.draft.sessionID,
-      agent: input.draft.agent,
-      model: input.draft.model,
-      messageID,
-      parts: requestParts,
-      variant: input.draft.variant,
+    let timeoutID: number | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutID = window.setTimeout(() => reject(new PromptTimeoutError()), PROMPT_TIMEOUT_MS)
+    })
+    await Promise.race([
+      input.client.session.promptAsync({
+        sessionID: input.draft.sessionID,
+        agent: input.draft.agent,
+        model: input.draft.model,
+        messageID,
+        parts: requestParts,
+        variant: input.draft.variant,
+      }),
+      timeout,
+    ]).finally(() => {
+      if (timeoutID !== undefined) clearTimeout(timeoutID)
     })
     return true
   } catch (err) {
@@ -205,6 +245,7 @@ type CommentItem = {
 export function createPromptSubmit(input: PromptSubmitInput) {
   const navigate = useNavigate()
   const sdk = useSDK()
+  const serverSDK = useServerSDK()
   const sync = useSync()
   const serverSync = useServerSync()
   const local = useLocal()
@@ -214,6 +255,35 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const language = useLanguage()
   const params = useParams()
   const pendingKey = (sessionID: string) => ScopedKey.from(sdk.scope, sessionID)
+
+  const clearPendingEntry = (sessionID: string) => {
+    pending.delete(pendingKey(sessionID))
+  }
+
+  const releasePendingEntry = (sessionID: string, options?: { cleanup?: boolean }) => {
+    const entry = pending.get(pendingKey(sessionID))
+    if (!entry) return
+    if (options?.cleanup) entry.cleanup()
+    pending.delete(pendingKey(sessionID))
+  }
+
+  const unsubStreamLoss = serverSDK.event.on("global", (event: { type: string }) => {
+    if (event.type !== "stream.connection_lost") return
+    let recovered = false
+    for (const [key, entry] of pending.entries()) {
+      if (entry.scope !== sdk.scope) continue
+      recovered = true
+      entry.abort.abort()
+      entry.cleanup()
+      pending.delete(key)
+    }
+    if (!recovered) return
+    showToast({
+      title: language.t("prompt.toast.connectionLost.title"),
+      description: language.t("prompt.toast.connectionLost.description"),
+    })
+  })
+  onCleanup(unsubStreamLoss)
 
   const errorMessage = (err: unknown) => {
     if (err && typeof err === "object" && "data" in err) {
@@ -240,7 +310,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       queued.abort.abort()
       queued.cleanup()
       pending.delete(key)
-      return Promise.resolve()
+      return Promise.resolve(queued.onAbort?.()).catch(() => {})
     }
     return sdk.client.session
       .abort({
@@ -520,7 +590,15 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         restoreInput()
       }
 
-      pending.set(pendingKey(session.id), { abort: controller, cleanup })
+      pending.set(
+        pendingKey(session.id),
+        createPendingPrompt({
+          scope: sdk.scope,
+          sessionID: session.id,
+          abort: controller,
+          cleanup,
+        }),
+      )
 
       const abortWait = new Promise<Awaited<ReturnType<typeof WorktreeState.wait>>>((resolve) => {
         if (controller.signal.aborted) {
@@ -553,11 +631,35 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           clearTimeout(timer.id)
         },
       )
-      pending.delete(pendingKey(session.id))
+      clearPendingEntry(session.id)
       if (controller.signal.aborted) return false
       if (result.status === "failed") throw new Error(result.message)
       return true
     }
+
+    const promptController = new AbortController()
+    pending.set(
+      pendingKey(session.id),
+      createPendingPrompt({
+        scope: sdk.scope,
+        sessionID: session.id,
+        abort: promptController,
+        cleanup: () => {
+          if (sessionDirectory === projectDirectory) {
+            sync.set("session_status", session.id, { type: "idle" })
+          }
+          removeOptimisticMessage()
+          restoreCommentItems(commentItems)
+          restoreInput()
+        },
+        onAbort: () =>
+          client.session
+            .abort({
+              sessionID: session.id,
+            })
+            .catch(() => {}),
+      }),
+    )
 
     void sendFollowupDraft({
       client,
@@ -567,8 +669,26 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       messageID,
       optimisticBusy: sessionDirectory === projectDirectory,
       before: waitForWorktree,
-    }).catch((err) => {
-      pending.delete(pendingKey(session.id))
+    })
+      .then(() => {
+        clearPendingEntry(session.id)
+      })
+      .catch((err) => {
+        releasePendingEntry(session.id, { cleanup: true })
+        if (err instanceof PromptTimeoutError) {
+          showToast({
+            title: language.t("prompt.toast.timeout.title"),
+            description: language.t("prompt.toast.timeout.description"),
+          })
+          return
+        }
+        if (err instanceof StreamConnectionLostError) {
+          showToast({
+            title: language.t("prompt.toast.connectionLost.title"),
+            description: language.t("prompt.toast.connectionLost.description"),
+          })
+          return
+        }
       if (sessionDirectory === projectDirectory) {
         sync.set("session_status", session.id, { type: "idle" })
       }
@@ -579,7 +699,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       removeOptimisticMessage()
       restoreCommentItems(commentItems)
       restoreInput()
-    })
+      })
   }
 
   return {

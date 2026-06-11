@@ -8,8 +8,9 @@ import { useLanguage } from "./language"
 import { usePlatform } from "./platform"
 import { ServerConnection, useServer } from "./server"
 import { createRefCountMap } from "@/utils/refcount"
-import { useGlobal } from "./global"
+import { createServerCtx as createGlobalServerCtx, useGlobal } from "./global"
 import { ServerScope } from "@/utils/server-scope"
+import { loadPortalBridgeState } from "@/utils/portal-bridge"
 
 const isAbortError = (error: unknown) =>
   error !== null && typeof error === "object" && "name" in error && error.name === "AbortError"
@@ -25,6 +26,36 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
   const platform = usePlatform()
   const abort = new AbortController()
   const defaultWorkspaceID = import.meta.env.VITE_OPENCODE_DEFAULT_WORKSPACE_ID?.trim() || undefined
+  const serverUsername = server.http.username?.trim() || undefined
+  const storedPortalBridge = loadPortalBridgeState()
+  const bridgeEmail = storedPortalBridge?.email?.trim() || undefined
+  const portalBridge =
+    storedPortalBridge &&
+    ((server.type === "http" && server.authToken) || (!!bridgeEmail && bridgeEmail === serverUsername))
+      ? storedPortalBridge
+      : undefined
+  const portalUser = (server.type === "http" && server.authToken ? serverUsername : undefined) || portalBridge?.email?.trim()
+  // #region debug-point C:sdk-context-init
+  fetch("http://127.0.0.1:7780/event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "login-freeze-crash",
+      runId: "pre-fix",
+      hypothesisId: "C",
+      location: "vendor/opencode/packages/app/src/context/server-sdk.tsx",
+      msg: "[DEBUG] server sdk context init",
+      data: {
+        serverUrl: server.http.url,
+        portalUser,
+        hasPortalBridge: !!portalBridge,
+        portalWorkspaceDirectory: portalBridge?.workspaceDirectory ?? null,
+        portalPackKey: portalBridge?.packKey ?? null,
+      },
+      ts: Date.now(),
+    }),
+  }).catch(() => {})
+  // #endregion
 
   const eventFetch = (() => {
     if (!platform.fetch || !server) return
@@ -41,6 +72,9 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
     signal: abort.signal,
     fetch: eventFetch,
     server: server.http,
+    portalUser,
+    portalPackKey: portalBridge?.packKey?.trim(),
+    portalPackVersion: portalBridge?.packVersion?.trim(),
     experimental_workspaceID: defaultWorkspaceID,
   })
   const emitter = createGlobalEmitter<{
@@ -58,6 +92,46 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
   const staleDeltas = new Set<string>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let last = 0
+
+  const canonicalEventDirectory = (directory: string) => {
+    const portalDirectory = portalBridge?.workspaceDirectory?.trim()
+    if (!portalDirectory) return directory
+    if (directory === portalDirectory) return directory
+    if (!directory.startsWith("/Users/")) return directory
+    return portalDirectory
+  }
+
+  const normalizePayload = (payload: Event): Event => {
+    if (!("properties" in payload) || !payload.properties || typeof payload.properties !== "object") return payload
+    const properties = payload.properties as Record<string, unknown>
+    let changed = false
+    const nextProps: Record<string, unknown> = { ...properties }
+
+    if (typeof nextProps.directory === "string") {
+      const normalized = canonicalEventDirectory(nextProps.directory)
+      if (normalized !== nextProps.directory) {
+        nextProps.directory = normalized
+        changed = true
+      }
+    }
+
+    if ("info" in nextProps && nextProps.info && typeof nextProps.info === "object") {
+      const info = nextProps.info as Record<string, unknown>
+      if (typeof info.directory === "string") {
+        const normalized = canonicalEventDirectory(info.directory)
+        if (normalized !== info.directory) {
+          nextProps.info = { ...info, directory: normalized }
+          changed = true
+        }
+      }
+    }
+
+    if (!changed) return payload
+    return {
+      ...payload,
+      properties: nextProps,
+    } as Event
+  }
 
   const deltaKey = (directory: string, messageID: string, partID: string) => `${directory}:${messageID}:${partID}`
 
@@ -113,10 +187,12 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
   const HEARTBEAT_TIMEOUT_MS = 15_000
   let lastEventAt = Date.now()
   let heartbeat: ReturnType<typeof setTimeout> | undefined
+  let heartbeatTimedOut = false
   const resetHeartbeat = () => {
     lastEventAt = Date.now()
     if (heartbeat) clearTimeout(heartbeat)
     heartbeat = setTimeout(() => {
+      heartbeatTimedOut = true
       attempt?.abort()
     }, HEARTBEAT_TIMEOUT_MS)
   }
@@ -129,6 +205,24 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
   const start = () => {
     if (started) return run
     started = true
+    // #region debug-point C:event-stream-start
+    fetch("http://127.0.0.1:7780/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "login-freeze-crash",
+        runId: "pre-fix",
+        hypothesisId: "C",
+        location: "vendor/opencode/packages/app/src/context/server-sdk.tsx",
+        msg: "[DEBUG] event stream start",
+        data: {
+          serverUrl: server.http.url,
+          fetchMode: eventFetch ? "platform" : "webview",
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
     const active = ++generation
     const previous = run
     const current = (async () => {
@@ -160,12 +254,12 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
           for await (const event of events.stream) {
             resetHeartbeat()
             streamErrorLogged = false
-            const directory = event.directory ?? "global"
+            const directory = canonicalEventDirectory(event.directory ?? "global")
             if (event.payload.type === "sync") {
               continue
             }
 
-            const payload = event.payload as Event
+            const payload = normalizePayload(event.payload as Event)
 
             const k = key(directory, payload)
             if (k) {
@@ -188,6 +282,28 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
             await wait(0)
           }
         } catch (error) {
+          // #region debug-point C:event-stream-catch
+          fetch("http://127.0.0.1:7780/event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: "login-freeze-crash",
+              runId: "pre-fix",
+              hypothesisId: "C",
+              location: "vendor/opencode/packages/app/src/context/server-sdk.tsx",
+              msg: "[DEBUG] event stream catch",
+              data: {
+                serverUrl: server.http.url,
+                aborted: attempt?.signal?.aborted ?? false,
+                error:
+                  error instanceof Error
+                    ? { name: error.name, message: error.message }
+                    : { value: String(error) },
+              },
+              ts: Date.now(),
+            }),
+          }).catch(() => {})
+          // #endregion
           if (!isStreamClosed(error, attempt?.signal) && !streamErrorLogged) {
             streamErrorLogged = true
             console.error("[global-sdk] event stream failed", {
@@ -196,7 +312,17 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
               error,
             })
           }
+          if (!streamErrorLogged || heartbeatTimedOut || !isStreamClosed(error, attempt?.signal)) {
+            emitter.emit("global", {
+              type: "stream.connection_lost",
+              properties: {
+                error: error instanceof Error ? error.message : String(error),
+                willRetry: true,
+              },
+            })
+          }
         } finally {
+          heartbeatTimedOut = false
           abort.signal.removeEventListener("abort", onAbort)
           attempt = undefined
           clearHeartbeat()
@@ -241,6 +367,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
   const sdk = createSdkForServer({
     server: server.http,
     fetch: platform.fetch,
+    portalUser,
     throwOnError: true,
     experimental_workspaceID: defaultWorkspaceID,
   })
@@ -259,6 +386,9 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
       return createSdkForServer({
         server: server.http,
         fetch: platform.fetch,
+        portalUser,
+        portalPackKey: portalBridge?.packKey?.trim(),
+        portalPackVersion: portalBridge?.packVersion?.trim(),
         ...opts,
         experimental_workspaceID,
       })
@@ -278,7 +408,9 @@ export const { use: useServerSDK, provider: ServerSDKProvider } = createSimpleCo
     const conn = props.server ?? server.current
     if (!conn) throw new Error(language.t("error.serverSDK.noServerAvailable"))
 
-    const ctx = global.createServerCtx(conn)
+    const key = ServerConnection.key(conn)
+    const ctx =
+      global.createServerCtx(conn) ?? createGlobalServerCtx(conn, server.scope(key), server.projects.forServer(key))
     return Object.assign(ctx.sdk, {
       createDirSdkContext: createRefCountMap((dir) => createDirSdkContext(dir, ctx.sdk)),
     })
@@ -287,6 +419,14 @@ export const { use: useServerSDK, provider: ServerSDKProvider } = createSimpleCo
 
 type SDKEventMap = {
   [key in Event["type"]]: Extract<Event, { type: key }>
+} & {
+  "stream.connection_lost": {
+    type: "stream.connection_lost"
+    properties: {
+      error: string
+      willRetry: boolean
+    }
+  }
 }
 
 function createDirSdkContext(directory: string, serverSDK: ServerSDK) {

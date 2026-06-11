@@ -26,6 +26,24 @@ function provideInstanceContext<E>(
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, E, WorkspaceRouteContext> {
   return Effect.gen(function* () {
     const route = yield* WorkspaceRouteContext
+    // #region debug-point E:instance-context
+    void fetch("http://127.0.0.1:7780/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "login-freeze-crash",
+        runId: "pre-fix",
+        hypothesisId: "E",
+        location: "vendor/opencode/packages/opencode/src/server/routes/instance/httpapi/middleware/instance-context.ts",
+        msg: "[DEBUG] instance context load",
+        data: {
+          routeDirectory: route.directory,
+          workspaceID: route.workspaceID ?? null,
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
     const ctx = yield* store.load({ directory: decode(route.directory) })
     return yield* effect.pipe(
       Effect.provideService(InstanceRef, ctx),

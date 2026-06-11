@@ -1,5 +1,5 @@
 import { createSimpleContext } from "@opencode-ai/ui/context"
-import { createEffect, createMemo, createRoot } from "solid-js"
+import { createEffect, createMemo, createRoot, runWithOwner } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createServerProjects, ServerConnection, useServer } from "./server"
 import { useServerHealth } from "@/utils/server-health"
@@ -44,11 +44,22 @@ export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext(
     const ensureServerCtx = (conn: ServerConnection.Any) => {
       const key = ServerConnection.key(conn)
       const existing = serverCtxs.get(key)
-      if (existing) return existing.serverCtx
+      if (existing?.serverCtx) return existing.serverCtx
+      if (existing) {
+        existing.dispose()
+        serverCtxs.delete(key)
+      }
       const root = createRoot((dispose) => {
-        const serverCtx = createServerCtx(conn, server.scope(key), server.projects.forServer(key))
+        const serverCtx = owner
+          ? runWithOwner(owner, () => createServerCtx(conn, server.scope(key), server.projects.forServer(key)))
+          : createServerCtx(conn, server.scope(key), server.projects.forServer(key))
         return { dispose, serverCtx }
-      }, owner as any)
+      })
+      if (!root?.serverCtx) {
+        return owner
+          ? runWithOwner(owner, () => createServerCtx(conn, server.scope(key), server.projects.forServer(key)))
+          : createServerCtx(conn, server.scope(key), server.projects.forServer(key))
+      }
       serverCtxs.set(key, root)
       return root.serverCtx
     }
@@ -86,13 +97,18 @@ export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext(
         },
       },
       createServerCtx(conn: ServerConnection.Any) {
-        return ensureServerCtx(conn)
+        return (
+          ensureServerCtx(conn) ??
+          (owner
+            ? runWithOwner(owner, () => createServerCtx(conn, server.scope(ServerConnection.key(conn)), server.projects.forServer(ServerConnection.key(conn))))
+            : createServerCtx(conn, server.scope(ServerConnection.key(conn)), server.projects.forServer(ServerConnection.key(conn))))
+        )
       },
     }
   },
 })
 
-function createServerCtx(
+export function createServerCtx(
   conn: ServerConnection.Any,
   scope: ServerScope,
   projects: ReturnType<typeof createServerProjects>,

@@ -295,6 +295,10 @@ export const dict = {
   "prompt.toast.commandSendFailed.title": "Failed to send command",
   "prompt.toast.promptSendFailed.title": "Failed to send prompt",
   "prompt.toast.promptSendFailed.description": "Unable to retrieve session",
+  "prompt.toast.timeout.title": "Request timed out",
+  "prompt.toast.timeout.description": "The AI response timed out. Please try again, or refresh the page if it keeps happening.",
+  "prompt.toast.connectionLost.title": "Connection lost",
+  "prompt.toast.connectionLost.description": "The event stream to the server was interrupted and the current request was stopped.",
 
   "dialog.mcp.title": "MCPs",
   "dialog.mcp.description": "{{enabled}} of {{total}} enabled",

@@ -2,6 +2,7 @@ import { WorkspaceV2 } from "@opencode-ai/core/workspace"
 import type { Target } from "@/control-plane/types"
 import { Workspace } from "@/control-plane/workspace"
 import { WorkspaceAdapterRuntime } from "@/control-plane/workspace-adapter-runtime"
+import { ensureMeilingUserWorkspace } from "@/cloud/workbench-assets"
 import { Session } from "@/session/session"
 import { HttpApiProxy } from "./proxy"
 import * as Fence from "@/server/shared/fence"
@@ -22,6 +23,9 @@ import { InvalidRequestError } from "../errors"
 export const WorkspaceRoutingQueryFields = {
   directory: Schema.optional(Schema.String),
   workspace: Schema.optional(Schema.String),
+  portal_pack_key: Schema.optional(Schema.String),
+  portal_pack_name: Schema.optional(Schema.String),
+  portal_pack_version: Schema.optional(Schema.String),
 }
 
 export const WorkspaceRoutingQuery = Schema.Struct(WorkspaceRoutingQueryFields)
@@ -85,6 +89,91 @@ function selectedV2WorkspaceID(
 
 function defaultDirectory(request: HttpServerRequest.HttpServerRequest, url: URL): string {
   return url.searchParams.get("directory") || request.headers["x-opencode-directory"] || process.cwd()
+}
+
+function decodeCredentialUsername(value: string | null | undefined) {
+  if (!value) return
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf8")
+    const separator = decoded.indexOf(":")
+    if (separator === -1) return
+    return decoded.slice(0, separator).trim() || undefined
+  } catch {
+    return
+  }
+}
+
+function requestCredentialUsername(request: HttpServerRequest.HttpServerRequest, url: URL) {
+  const portalUser = request.headers["x-portal-user"]?.trim()
+  if (portalUser) return portalUser
+  const tokenUsername = decodeCredentialUsername(url.searchParams.get("auth_token"))
+  if (tokenUsername) return tokenUsername
+  const match = /^Basic\s+(.+)$/i.exec(request.headers.authorization ?? "")
+  return decodeCredentialUsername(match?.[1])
+}
+
+function requestPortalPack(request: HttpServerRequest.HttpServerRequest, url: URL) {
+  const packKey = request.headers["x-portal-pack-key"]?.trim() || url.searchParams.get("portal_pack_key")?.trim() || undefined
+  const packName =
+    request.headers["x-portal-pack-name"]?.trim() || url.searchParams.get("portal_pack_name")?.trim() || undefined
+  const packVersion =
+    request.headers["x-portal-pack-version"]?.trim() || url.searchParams.get("portal_pack_version")?.trim() || undefined
+  return { packKey, packName, packVersion }
+}
+
+function resolvePortalWorkspaceDirectory(request: HttpServerRequest.HttpServerRequest, url: URL) {
+  const userID = requestCredentialUsername(request, url)
+  if (!userID) return Effect.succeed(undefined)
+  const pack = requestPortalPack(request, url)
+  // #region debug-point E:portal-workspace-request
+  void fetch("http://127.0.0.1:7780/event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: "login-freeze-crash",
+      runId: "pre-fix",
+      hypothesisId: "E",
+      location: "vendor/opencode/packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts",
+      msg: "[DEBUG] resolve portal workspace request",
+      data: {
+        userID,
+        packKey: pack.packKey ?? null,
+        packVersion: pack.packVersion ?? null,
+        requestPath: url.pathname,
+      },
+      ts: Date.now(),
+    }),
+  }).catch(() => {})
+  // #endregion
+  return Effect.promise(() =>
+    ensureMeilingUserWorkspace(userID, {
+      methodologyPackKey: pack.packKey,
+      methodologyPackName: pack.packName,
+      methodologyPackVersion: pack.packVersion,
+    }).then((workspace) => {
+      // #region debug-point E:portal-workspace-resolved
+      void fetch("http://127.0.0.1:7780/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "login-freeze-crash",
+          runId: "pre-fix",
+          hypothesisId: "E",
+          location: "vendor/opencode/packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts",
+          msg: "[DEBUG] portal workspace resolved",
+          data: {
+            userID,
+            workspaceDirectory: workspace.workspaceDirectory,
+            packDirectory: workspace.packDirectory,
+            contextPath: workspace.contextPath,
+          },
+          ts: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+      return workspace
+    }),
+  ).pipe(Effect.map((workspace) => workspace.workspaceDirectory))
 }
 
 function shouldStayOnControlPlane(request: HttpServerRequest.HttpServerRequest, url: URL): boolean {
@@ -178,8 +267,10 @@ function planRequest(
       return yield* planWorkspaceRequest(request, url, workspace)
     }
 
+    const portalWorkspaceDirectory = yield* resolvePortalWorkspaceDirectory(request, url)
+
     return RequestPlan.Local({
-      directory: session?.directory || defaultDirectory(request, url),
+      directory: portalWorkspaceDirectory || session?.directory || defaultDirectory(request, url),
       workspaceID: envWorkspaceID ?? workspaceID,
     })
   })

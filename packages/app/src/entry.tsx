@@ -7,12 +7,13 @@ import { type Platform, PlatformProvider } from "@/context/platform"
 import { dict as en } from "@/i18n/en"
 import { dict as zh } from "@/i18n/zh"
 import { handleNotificationClick } from "@/utils/notification-click"
-import { hasPortalBridgeParams, readPortalBridgeParams, savePortalBridgeState } from "@/utils/portal-bridge"
+import { hasPortalBridgeParams, loadPortalBridgeState, readPortalBridgeParams, savePortalBridgeState } from "@/utils/portal-bridge"
 import { authFromToken } from "@/utils/server"
 import pkg from "../package.json"
 import { ServerConnection } from "./context/server"
 
 const DEFAULT_SERVER_URL_KEY = "meiling.settings.dat:defaultServerUrl"
+const SERVER_STATE_KEY = "meiling.global.dat:server"
 
 const getLocale = () => {
   if (typeof navigator !== "object") return "en" as const
@@ -54,6 +55,7 @@ const setStorage = (key: string, value: string | null) => {
 
 const readDefaultServerUrl = () => getStorage(DEFAULT_SERVER_URL_KEY)
 const writeDefaultServerUrl = (url: string | null) => setStorage(DEFAULT_SERVER_URL_KEY, url)
+const clearServerState = () => setStorage(SERVER_STATE_KEY, null)
 
 const normalizeUrl = (value: string) => {
   try {
@@ -161,7 +163,21 @@ const clearAuthToken = () => {
   params.delete("portal_email")
   params.delete("portal_base_url")
   params.delete("portal_logout_url")
+  params.delete("portal_workspace_directory")
+  params.delete("portal_pack_key")
+  params.delete("portal_pack_name")
+  params.delete("portal_pack_version")
   history.replaceState(null, "", location.pathname + (params.size ? `?${params}` : "") + location.hash)
+}
+
+const shouldRedirectToPortalLogin = () => {
+  if (import.meta.env.DEV) return false
+  if (new URLSearchParams(location.search).has("auth_token")) return false
+  if (loadPortalBridgeState()) return false
+  const configured = import.meta.env.VITE_PORTAL_BASE_URL?.trim()
+  if (!configured) return false
+  window.location.replace(new URL("/login", configured).toString())
+  return true
 }
 
 const platform: Platform = {
@@ -199,35 +215,90 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 }
 
 if (root instanceof HTMLElement) {
-  const portalBridge = readPortalBridgeParams(location.search)
-  if (hasPortalBridgeParams(location.search)) {
-    savePortalBridgeState(portalBridge)
+  if (shouldRedirectToPortalLogin()) {
+    // Let the browser leave for the portal login page before booting the app shell.
+  } else {
+    const portalBridge = readPortalBridgeParams(location.search)
+    const hasBridgeParams = hasPortalBridgeParams(location.search)
+    // #region debug-point B:entry-bootstrap
+    fetch("http://127.0.0.1:7780/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "login-freeze-crash",
+        runId: "pre-fix",
+        hypothesisId: "B",
+        location: "vendor/opencode/packages/app/src/entry.tsx",
+        msg: "[DEBUG] entry bootstrap",
+        data: {
+          href: location.href,
+          hasBridgeParams,
+          portalBridge,
+          storedBridge: loadPortalBridgeState() ?? null,
+          defaultUrl: getDefaultUrl(),
+          currentUrl: getCurrentUrl(),
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => {})
+    // #endregion
+    if (hasBridgeParams) {
+      clearServerState()
+      savePortalBridgeState(portalBridge)
+    }
+    const effectivePortalBridge = hasBridgeParams ? portalBridge : loadPortalBridgeState() ?? portalBridge
+    const auth = authFromToken(new URLSearchParams(location.search).get("auth_token"))
+    clearAuthToken()
+    const server: ServerConnection.Http = {
+      type: "http",
+      authToken: !!auth,
+      displayName: effectivePortalBridge.displayName,
+      http: {
+        url: getCurrentUrl(),
+        username: auth?.username || effectivePortalBridge.email,
+        password: auth?.password,
+      },
+    }
+    render(
+      () => (
+        <PlatformProvider value={platform}>
+          <AppBaseProviders>
+            <AppInterface
+              defaultServer={ServerConnection.Key.make(getDefaultUrl())}
+              canonicalLocalServer={ServerConnection.key(server)}
+              servers={[server]}
+              disableHealthCheck
+            />
+          </AppBaseProviders>
+        </PlatformProvider>
+      ),
+      root,
+    )
+    // #region debug-point B:post-render-dom
+    setTimeout(() => {
+      const center = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
+      fetch("http://127.0.0.1:7780/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "login-freeze-crash",
+          runId: "pre-fix",
+          hypothesisId: "B",
+          location: "vendor/opencode/packages/app/src/entry.tsx",
+          msg: "[DEBUG] post render dom snapshot",
+          data: {
+            href: location.href,
+            bodyChildCount: document.body.children.length,
+            centerTag: center?.tagName ?? null,
+            centerText: center?.textContent?.slice(0, 80) ?? null,
+            modalCount: document.querySelectorAll('[role="dialog"]').length,
+            ariaBusyCount: document.querySelectorAll('[aria-busy="true"]').length,
+            pointerNoneCount: document.querySelectorAll('[style*="pointer-events: none"]').length,
+          },
+          ts: Date.now(),
+        }),
+      }).catch(() => {})
+    }, 1500)
+    // #endregion
   }
-  const auth = authFromToken(new URLSearchParams(location.search).get("auth_token"))
-  clearAuthToken()
-  const server: ServerConnection.Http = {
-    type: "http",
-    authToken: !!auth,
-    displayName: portalBridge.displayName,
-    http: {
-      url: getCurrentUrl(),
-      username: auth?.username || portalBridge.email,
-      password: auth?.password,
-    },
-  }
-  render(
-    () => (
-      <PlatformProvider value={platform}>
-        <AppBaseProviders>
-          <AppInterface
-            defaultServer={ServerConnection.Key.make(getDefaultUrl())}
-            canonicalLocalServer={ServerConnection.key(server)}
-            servers={[server]}
-            disableHealthCheck
-          />
-        </AppBaseProviders>
-      </PlatformProvider>
-    ),
-    root,
-  )
 }

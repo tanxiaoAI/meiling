@@ -307,6 +307,10 @@ export const dict = {
   "prompt.toast.commandSendFailed.title": "发送命令失败",
   "prompt.toast.promptSendFailed.title": "发送提示失败",
   "prompt.toast.promptSendFailed.description": "无法获取会话",
+  "prompt.toast.timeout.title": "请求超时",
+  "prompt.toast.timeout.description": "AI 响应超时，请重试。若问题持续存在，请刷新页面后再试。",
+  "prompt.toast.connectionLost.title": "连接已中断",
+  "prompt.toast.connectionLost.description": "与服务器的事件连接已断开，当前请求已停止。请稍后重试。",
 
   "dialog.mcp.title": "MCPs",
   "dialog.mcp.description": "已启用 {{enabled}} / {{total}}",

@@ -31,6 +31,7 @@ import { PathKey } from "@/utils/path-key"
 import { createDirSyncContext } from "./directory-sync"
 import { createSimpleContext, NormalizedProviderListResponse } from "@opencode-ai/ui/context"
 import { createRefCountMap } from "@/utils/refcount"
+import { loadPortalBridgeState } from "@/utils/portal-bridge"
 import { useGlobal } from "./global"
 import { ServerConnection, useServer } from "./server"
 import { retry } from "@opencode-ai/core/util/retry"
@@ -247,7 +248,37 @@ export function createServerSyncContextInner(_serverSDK?: ServerSDK) {
     },
   })
 
+  const portalWorkspaceDirectory = () => loadPortalBridgeState()?.workspaceDirectory?.trim()
+
+  const resolveCanonicalDirectory = (directory: string) => {
+    const key = directoryKey(directory)
+    if (!key) return directory
+    const portalDirectory = portalWorkspaceDirectory()
+    if (portalDirectory && key === directoryKey(portalDirectory)) return portalDirectory
+    for (const [childKey, [store]] of Object.entries(children.children)) {
+      const resolved = store.path.directory?.trim()
+      if (!resolved) continue
+      if (directoryKey(resolved) === key && childKey !== key) return childKey
+    }
+    return directory
+  }
+
+  const disposeAliasDirectory = (directory: string, canonical: string) => {
+    const aliasKey = directoryKey(directory)
+    const canonicalKey = directoryKey(canonical)
+    if (!aliasKey || !canonicalKey || aliasKey === canonicalKey) return
+    if (!children.children[aliasKey]) return
+    children.disposeDirectory(aliasKey)
+  }
+
+  const pushDirectory = (directory: string) => {
+    const canonical = resolveCanonicalDirectory(directory)
+    disposeAliasDirectory(directory, canonical)
+    queue.push(canonical)
+  }
+
   async function loadSessions(directory: string) {
+    directory = resolveCanonicalDirectory(directory)
     const key = directoryKey(directory)
     const pending = sessionLoads.get(key)
     if (pending) return pending
@@ -325,6 +356,7 @@ export function createServerSyncContextInner(_serverSDK?: ServerSDK) {
   }
 
   async function bootstrapInstance(directory: string) {
+    directory = resolveCanonicalDirectory(directory)
     const key = directoryKey(directory)
     if (!key) return
     const pending = booting.get(key)
@@ -365,7 +397,8 @@ export function createServerSyncContextInner(_serverSDK?: ServerSDK) {
   }
 
   const unsub = serverSDK.event.listen((e) => {
-    const directory = e.name
+    const directory = resolveCanonicalDirectory(e.name)
+    disposeAliasDirectory(e.name, directory)
     const key = directoryKey(directory)
     const event = e.details
     const recent = bootingRoot || Date.now() - bootedAt < 1500
@@ -382,8 +415,8 @@ export function createServerSyncContextInner(_serverSDK?: ServerSDK) {
       })
       if (event.type === "server.connected" || event.type === "global.disposed") {
         if (recent) return
-        for (const directory of Object.keys(children.children)) {
-          queue.push(directory)
+        for (const directory of new Set(Object.keys(children.children).map(resolveCanonicalDirectory))) {
+          pushDirectory(directory)
         }
       }
       return
@@ -398,7 +431,7 @@ export function createServerSyncContextInner(_serverSDK?: ServerSDK) {
       directory,
       store,
       setStore,
-      push: queue.push,
+      push: pushDirectory,
       setSessionTodo,
       vcsCache: children.vcsCache.get(key),
       loadLsp: () => {
@@ -466,9 +499,21 @@ export function createServerSyncContextInner(_serverSDK?: ServerSDK) {
     get error() {
       return globalStore.error
     },
-    child: children.child,
-    peek: children.peek,
-    disableMcp: children.disableMcp,
+    child: (directory: string, options?: Parameters<typeof children.child>[1]) => {
+      const canonical = resolveCanonicalDirectory(directory)
+      disposeAliasDirectory(directory, canonical)
+      return children.child(canonical, options)
+    },
+    peek: (directory: string, options?: Parameters<typeof children.peek>[1]) => {
+      const canonical = resolveCanonicalDirectory(directory)
+      disposeAliasDirectory(directory, canonical)
+      return children.peek(canonical, options)
+    },
+    disableMcp: (directory: string) => {
+      const canonical = resolveCanonicalDirectory(directory)
+      disposeAliasDirectory(directory, canonical)
+      return children.disableMcp(canonical)
+    },
     queryOptions: queryOptionsApi,
     // bootstrap,
     updateConfig: updateConfigMutation.mutateAsync,

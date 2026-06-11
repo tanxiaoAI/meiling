@@ -67,6 +67,7 @@ import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { ServerConnection, useServer } from "@/context/server"
 import { useLanguage, type Locale } from "@/context/language"
 import { pathKey } from "@/utils/path-key"
+import { loadPortalBridgeState } from "@/utils/portal-bridge"
 import {
   displayName,
   effectiveWorkspaceOrder,
@@ -134,16 +135,27 @@ export default function Layout(props: ParentProps) {
   createEffect(() => setV2Toast(newDesign()))
   const initialDirectory = decode64(params.dir)
   const location = useLocation()
+  const portalWorkspaceDirectory = createMemo(() => loadPortalBridgeState()?.workspaceDirectory?.trim())
+  const canonicalPortalDirectory = (directory: string | undefined) => {
+    if (!directory) return directory ?? ""
+    const portalDir = portalWorkspaceDirectory()
+    if (!portalDir) return directory
+    const portalStore = serverSync.peek(portalDir, { bootstrap: false })
+    const physicalPortalDir = portalStore[0].path.directory?.trim()
+    if (physicalPortalDir && pathKey(directory) === pathKey(physicalPortalDir)) return portalDir
+    return directory
+  }
   const route = createMemo(() => {
     const slug = params.dir
     if (!slug) return { slug, dir: "" }
     const dir = decode64(slug)
     if (!dir) return { slug, dir: "" }
     const store = serverSync.peek(dir, { bootstrap: false })
+    const resolvedDirectory = canonicalPortalDirectory(store[0].path.directory || dir)
     return {
       slug,
       store,
-      dir: store[0].path.directory || dir,
+      dir: resolvedDirectory,
     }
   })
   const availableThemeEntries = createMemo(() => theme.ids().map((id) => [id, theme.themes()[id]] as const))
@@ -562,6 +574,33 @@ export default function Layout(props: ParentProps) {
     return projects.find((p) => p.worktree === root) ?? projects[0]
   })
 
+  const singleProjectMode = createMemo(() => !!portalWorkspaceDirectory())
+
+  createEffect(() => {
+    if (!portalWorkspaceDirectory()) return
+    if (layout.sidebar.opened()) return
+    layout.sidebar.open()
+  })
+
+  createEffect(() => {
+    const directory = currentDir()
+    if (!directory) return
+    layout.projects.open(directory)
+  })
+
+  createEffect(() => {
+    const portalDirectory = portalWorkspaceDirectory()
+    if (!portalDirectory) return
+    for (const project of layout.projects.list()) {
+      if (project.worktree === portalDirectory) continue
+      layout.projects.close(project.worktree)
+    }
+    for (const project of server.projects.list()) {
+      if (project.worktree === portalDirectory) continue
+      server.projects.close(project.worktree)
+    }
+  })
+
   const [autoselecting] = createResource(async () => {
     await ready.promise
     await layout.ready.promise
@@ -834,7 +873,7 @@ export default function Layout(props: ParentProps) {
   }
 
   const prefetchSession = (session: Session, priority: "high" | "low" = "low") => {
-    const directory = session.directory
+    const directory = canonicalPortalDirectory(session.directory)
     if (!directory) return
 
     const [store] = serverSync.child(directory, { bootstrap: false })
@@ -980,13 +1019,14 @@ export default function Layout(props: ParentProps) {
   }
 
   async function archiveSession(session: Session) {
-    const [store, setStore] = serverSync.child(session.directory)
+    const directory = canonicalPortalDirectory(session.directory)
+    const [store, setStore] = serverSync.child(directory)
     const sessions = store.session ?? []
     const index = sessions.findIndex((s) => s.id === session.id)
     const nextSession = sessions[index + 1] ?? sessions[index - 1]
 
     await serverSDK.client.session.update({
-      directory: session.directory,
+      directory,
       sessionID: session.id,
       time: { archived: Date.now() },
     })
@@ -1316,11 +1356,12 @@ export default function Layout(props: ParentProps) {
       return canOpen(target)
     }
     const openSession = async (target: { directory: string; id: string }) => {
-      if (!canOpen(target.directory)) return false
-      const [data] = serverSync.child(target.directory, { bootstrap: false })
+      const targetDirectory = canonicalPortalDirectory(target.directory)
+      if (!canOpen(targetDirectory)) return false
+      const [data] = serverSync.child(targetDirectory, { bootstrap: false })
       if (data.session.some((item) => item.id === target.id)) {
-        setStore("lastProjectSession", root, { directory: target.directory, id: target.id, at: Date.now() })
-        navigateWithSidebarReset(`/${base64Encode(target.directory)}/session/${target.id}`)
+        setStore("lastProjectSession", root, { directory: targetDirectory, id: target.id, at: Date.now() })
+        navigateWithSidebarReset(`/${base64Encode(targetDirectory)}/session/${target.id}`)
         return true
       }
       const resolved = await serverSDK.client.session
@@ -1328,9 +1369,10 @@ export default function Layout(props: ParentProps) {
         .then((x) => x.data)
         .catch(() => undefined)
       if (!resolved?.directory) return false
-      if (!canOpen(resolved.directory)) return false
-      setStore("lastProjectSession", root, { directory: resolved.directory, id: resolved.id, at: Date.now() })
-      navigateWithSidebarReset(`/${base64Encode(resolved.directory)}/session/${resolved.id}`)
+      const resolvedDirectory = canonicalPortalDirectory(resolved.directory)
+      if (!canOpen(resolvedDirectory)) return false
+      setStore("lastProjectSession", root, { directory: resolvedDirectory, id: resolved.id, at: Date.now() })
+      navigateWithSidebarReset(`/${base64Encode(resolvedDirectory)}/session/${resolved.id}`)
       return true
     }
 
@@ -1371,7 +1413,7 @@ export default function Layout(props: ParentProps) {
 
   function navigateToSession(session: Session | undefined) {
     if (!session) return
-    navigateWithSidebarReset(`/${base64Encode(session.directory)}/session/${session.id}`)
+    navigateWithSidebarReset(`/${base64Encode(canonicalPortalDirectory(session.directory))}/session/${session.id}`)
   }
 
   function openProject(directory: string, navigate = true) {
@@ -1616,7 +1658,7 @@ export default function Layout(props: ParentProps) {
           serverSDK.client.session
             .update({
               sessionID: session.id,
-              directory: session.directory,
+              directory: canonicalPortalDirectory(session.directory),
               time: { archived: archivedAt },
             })
             .catch(() => undefined),
@@ -1839,8 +1881,9 @@ export default function Layout(props: ParentProps) {
     )
   })
 
-  const side = createMemo(() => (layout.sidebar.opened() ? Math.max(layout.sidebar.width(), 244) : 64))
-  const panel = createMemo(() => (layout.sidebar.opened() ? Math.max(side() - 64, 0) : 0))
+  const railWidth = createMemo(() => (singleProjectMode() ? 0 : 64))
+  const side = createMemo(() => (layout.sidebar.opened() ? Math.max(layout.sidebar.width(), 244) : railWidth()))
+  const panel = createMemo(() => (layout.sidebar.opened() ? Math.max(side() - railWidth(), 0) : 0))
 
   const loadedSessionDirs = new Set<string>()
 
@@ -2356,6 +2399,7 @@ export default function Layout(props: ParentProps) {
   const sidebarContent = (mobile?: boolean) => (
     <SidebarContent
       mobile={mobile}
+      singleProjectMode={singleProjectMode()}
       opened={() => layout.sidebar.opened()}
       aimMove={aim.move}
       projects={projects}

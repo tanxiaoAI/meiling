@@ -3,6 +3,10 @@ export type PortalBridgeState = {
   email?: string
   baseUrl?: string
   logoutUrl?: string
+  workspaceDirectory?: string
+  packKey?: string
+  packName?: string
+  packVersion?: string
 }
 
 const STORAGE_KEY = "opencode.portal-bridge"
@@ -19,6 +23,10 @@ export function readPortalBridgeParams(search: string): PortalBridgeState {
     email: params.get("portal_email") ?? undefined,
     baseUrl: params.get("portal_base_url") ?? undefined,
     logoutUrl: params.get("portal_logout_url") ?? undefined,
+    workspaceDirectory: params.get("portal_workspace_directory") ?? undefined,
+    packKey: params.get("portal_pack_key") ?? undefined,
+    packName: params.get("portal_pack_name") ?? undefined,
+    packVersion: params.get("portal_pack_version") ?? undefined,
   }
 }
 
@@ -29,6 +37,10 @@ export function hasPortalBridgeParams(search: string) {
     "portal_email",
     "portal_base_url",
     "portal_logout_url",
+    "portal_workspace_directory",
+    "portal_pack_key",
+    "portal_pack_name",
+    "portal_pack_version",
   ].some((key) => params.has(key))
 }
 

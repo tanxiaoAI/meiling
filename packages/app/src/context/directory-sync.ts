@@ -11,6 +11,7 @@ import {
 import type { Message, Part } from "@opencode-ai/sdk/v2/client"
 import { SESSION_CACHE_LIMIT, dropSessionCaches, pickSessionCacheEvictions } from "./global-sync/session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
+import { pathKey } from "@/utils/path-key"
 import { createServerSdkContext, useServerSDK } from "./server-sdk"
 import { type createServerSyncContextInner } from "./server-sync"
 
@@ -30,7 +31,7 @@ function runInflight(map: Map<string, Promise<void>>, key: string, task: () => P
   return promise
 }
 
-const keyFor = (directory: string, id: string) => `${directory}\n${id}`
+const keyFor = (directory: string, id: string) => `${pathKey(directory)}\n${id}`
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
@@ -190,6 +191,7 @@ export const createDirSyncContext = (
   const initialMessagePageSize = 80
   const historyMessagePageSize = 200
   const inflight = new Map<string, Promise<void>>()
+  const inflightMessages = new Map<string, Promise<void>>()
   const inflightDiff = new Map<string, Promise<void>>()
   const inflightTodo = new Map<string, Promise<void>>()
   const optimistic = new Map<string, Map<string, OptimisticItem>>()
@@ -325,53 +327,55 @@ export const createDirSyncContext = (
     mode?: "replace" | "prepend"
   }) => {
     const key = keyFor(input.directory, input.sessionID)
-    if (meta.loading[key]) return
+    return runInflight(inflightMessages, key, async () => {
+      if (meta.loading[key]) return
 
-    setMeta("loading", key, true)
-    await fetchMessages(input)
-      .then((page) => {
-        if (!tracked(input.directory, input.sessionID)) return
-        const next = mergeOptimisticPage(page, getOptimistic(input.directory, input.sessionID))
-        for (const messageID of next.confirmed) {
-          clearOptimistic(input.directory, input.sessionID, messageID)
-        }
-        const [store] = serverSync.child(input.directory, { bootstrap: false })
-        const cached = input.mode === "prepend" ? (store.message[input.sessionID] ?? []) : []
-        const message = input.mode === "prepend" ? merge(cached, next.session) : next.session
-        batch(() => {
-          input.setStore("message", input.sessionID, reconcile(message, { key: "id" }))
-          for (const p of next.part) {
-            const filtered = p.part.filter((x) => !SKIP_PARTS.has(x.type))
-            if (filtered.length) input.setStore("part", p.id, filtered)
+      setMeta("loading", key, true)
+      await fetchMessages(input)
+        .then((page) => {
+          if (!tracked(input.directory, input.sessionID)) return
+          const next = mergeOptimisticPage(page, getOptimistic(input.directory, input.sessionID))
+          for (const messageID of next.confirmed) {
+            clearOptimistic(input.directory, input.sessionID, messageID)
           }
-          setMeta("limit", key, message.length)
-          setMeta("cursor", key, next.cursor)
-          setMeta("complete", key, next.complete)
-          setSessionPrefetch({
-            scope: serverSDK.scope,
-            directory: input.directory,
-            sessionID: input.sessionID,
-            limit: message.length,
-            cursor: next.cursor,
-            complete: next.complete,
+          const [store] = serverSync.child(input.directory, { bootstrap: false })
+          const cached = input.mode === "prepend" ? (store.message[input.sessionID] ?? []) : []
+          const message = input.mode === "prepend" ? merge(cached, next.session) : next.session
+          batch(() => {
+            input.setStore("message", input.sessionID, reconcile(message, { key: "id" }))
+            for (const p of next.part) {
+              const filtered = p.part.filter((x) => !SKIP_PARTS.has(x.type))
+              if (filtered.length) input.setStore("part", p.id, filtered)
+            }
+            setMeta("limit", key, message.length)
+            setMeta("cursor", key, next.cursor)
+            setMeta("complete", key, next.complete)
+            setSessionPrefetch({
+              scope: serverSDK.scope,
+              directory: input.directory,
+              sessionID: input.sessionID,
+              limit: message.length,
+              cursor: next.cursor,
+              complete: next.complete,
+            })
           })
         })
-      })
-      .catch((error) => {
-        if (isNotFound(error) && !tracked(input.directory, input.sessionID)) return
-        throw error
-      })
-      .finally(() => {
-        setMeta(
-          produce((draft) => {
-            if (!tracked(input.directory, input.sessionID)) {
-              delete draft.loading[key]
-              return
-            }
-            draft.loading[key] = false
-          }),
-        )
-      })
+        .catch((error) => {
+          if (isNotFound(error) && !tracked(input.directory, input.sessionID)) return
+          throw error
+        })
+        .finally(() => {
+          setMeta(
+            produce((draft) => {
+              if (!tracked(input.directory, input.sessionID)) {
+                delete draft.loading[key]
+                return
+              }
+              draft.loading[key] = false
+            }),
+          )
+        })
+    })
   }
 
   return {
@@ -505,7 +509,29 @@ export const createDirSyncContext = (
                   limit,
                 })
 
-          await Promise.all([sessionReq, messagesReq])
+          const [sessionResult, messagesResult] = await Promise.allSettled([sessionReq, messagesReq])
+
+          if (sessionResult.status === "rejected") {
+            throw sessionResult.reason
+          }
+
+          if (messagesResult.status === "rejected") {
+            if (hasSession || sessionResult.status === "fulfilled") {
+              batch(() => {
+                if (store.message[sessionID] === undefined) {
+                  setStore("message", sessionID, [])
+                }
+                setMeta("loading", key, false)
+              })
+              console.error("[directory-sync] failed to load messages", {
+                directory,
+                sessionID,
+                error: messagesResult.reason,
+              })
+              return
+            }
+            throw messagesResult.reason
+          }
         })
       },
       async diff(sessionID: string, opts?: { force?: boolean }) {

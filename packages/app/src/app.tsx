@@ -38,6 +38,7 @@ import { HighlightsProvider } from "@/context/highlights"
 import { LanguageProvider, type Locale, useLanguage } from "@/context/language"
 import { LayoutProvider } from "@/context/layout"
 import { ModelsProvider } from "@/context/models"
+import { loadPortalBridgeState } from "@/utils/portal-bridge"
 import { NotificationProvider } from "@/context/notification"
 import { PermissionProvider } from "@/context/permission"
 import { PromptProvider } from "@/context/prompt"
@@ -77,10 +78,13 @@ function RootEntryRoute() {
   const serverSync = useServerSync()
   const layout = useLayout()
   const navigate = useNavigate()
+  const portalWorkspaceDirectory = createMemo(() => loadPortalBridgeState()?.workspaceDirectory?.trim())
 
   const targetDirectory = createMemo(() => {
+    const bridgeDirectory = portalWorkspaceDirectory()
     const configuredDirectory = import.meta.env.VITE_OPENCODE_DEFAULT_PROJECT_DIR?.trim()
     const configuredWorkspaceID = import.meta.env.VITE_OPENCODE_DEFAULT_WORKSPACE_ID?.trim()
+    if (bridgeDirectory) return bridgeDirectory
     if (configuredWorkspaceID && configuredDirectory) return configuredDirectory
     return server.projects.last() || server.projects.list()[0]?.worktree || serverSync.data.path.directory || configuredDirectory
   })
@@ -89,6 +93,16 @@ function RootEntryRoute() {
     if (!server.ready() || !serverSync.ready) return
     const target = targetDirectory()
     if (!target) return
+    const portalDirectory = portalWorkspaceDirectory()
+    if (portalDirectory) {
+      for (const project of server.projects.list()) {
+        if (project.worktree === portalDirectory) continue
+        server.projects.close(project.worktree)
+      }
+    }
+    if (portalWorkspaceDirectory() && !layout.sidebar.opened()) {
+      layout.sidebar.open()
+    }
     layout.projects.open(target)
     server.projects.touch(target)
     navigate(`/${base64Encode(target)}/session`, { replace: true })
@@ -208,6 +222,27 @@ export function AppBaseProviders(props: ParentProps<{ locale?: Locale }>) {
           <UiI18nBridge>
             <ErrorBoundary
               fallback={(error) => {
+                // #region debug-point D:error-boundary
+                fetch("http://127.0.0.1:7780/event", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    sessionId: "login-freeze-crash",
+                    runId: "pre-fix",
+                    hypothesisId: "D",
+                    location: "vendor/opencode/packages/app/src/app.tsx",
+                    msg: "[DEBUG] error boundary fallback",
+                    data: {
+                      href: typeof location === "object" ? location.href : null,
+                      error:
+                        error instanceof Error
+                          ? { name: error.name, message: error.message, stack: error.stack?.split("\n").slice(0, 8) }
+                          : { value: String(error) },
+                    },
+                    ts: Date.now(),
+                  }),
+                }).catch(() => {})
+                // #endregion
                 Sentry.captureException(error)
                 return <ErrorPage error={error} />
               }}
@@ -337,8 +372,8 @@ function ConnectionError(props: { onRetry?: () => void; onServerSelected?: (key:
 function ServerKey(props: ParentProps) {
   const server = useServer()
   return (
-    <Show when={server.key} keyed>
-      {props.children}
+    <Show when={server.ready() ? server.key : undefined} keyed fallback={<AppLoadingScreen />}>
+      {() => props.children}
     </Show>
   )
 }
