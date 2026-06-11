@@ -125,55 +125,13 @@ function resolvePortalWorkspaceDirectory(request: HttpServerRequest.HttpServerRe
   const userID = requestCredentialUsername(request, url)
   if (!userID) return Effect.succeed(undefined)
   const pack = requestPortalPack(request, url)
-  // #region debug-point E:portal-workspace-request
-  void fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "E",
-      location: "vendor/opencode/packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts",
-      msg: "[DEBUG] resolve portal workspace request",
-      data: {
-        userID,
-        packKey: pack.packKey ?? null,
-        packVersion: pack.packVersion ?? null,
-        requestPath: url.pathname,
-      },
-      ts: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
   return Effect.promise(() =>
     ensureMeilingUserWorkspace(userID, {
       methodologyPackKey: pack.packKey,
       methodologyPackName: pack.packName,
       methodologyPackVersion: pack.packVersion,
-    }).then((workspace) => {
-      // #region debug-point E:portal-workspace-resolved
-      void fetch("http://127.0.0.1:7780/event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: "login-freeze-crash",
-          runId: "pre-fix",
-          hypothesisId: "E",
-          location: "vendor/opencode/packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts",
-          msg: "[DEBUG] portal workspace resolved",
-          data: {
-            userID,
-            workspaceDirectory: workspace.workspaceDirectory,
-            packDirectory: workspace.packDirectory,
-            contextPath: workspace.contextPath,
-          },
-          ts: Date.now(),
-        }),
-      }).catch(() => {})
-      // #endregion
-      return workspace
-    }),
-  ).pipe(Effect.map((workspace) => workspace.workspaceDirectory))
+    }).then((ws) => ws.workspaceDirectory),
+  )
 }
 
 function shouldStayOnControlPlane(request: HttpServerRequest.HttpServerRequest, url: URL): boolean {

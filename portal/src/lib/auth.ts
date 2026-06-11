@@ -1,4 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 import { getPortalUsers } from "@/data/demo-users";
 import type { PortalUserSeed } from "@/lib/env";
@@ -39,22 +41,91 @@ function safeEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function authenticateUser(email: string, password: string): SessionUser | null {
-  const normalizedEmail = email.trim().toLowerCase();
-  const matched = getPortalUsers().find((user) => user.email.toLowerCase() === normalizedEmail);
+/**
+ * Tries to authenticate against admin-created filesystem accounts.
+ * These accounts are stored in data/users/{slug}/.meiling-workbench.json
+ */
+function authenticateFilesystemUser(
+  email: string,
+  password: string,
+): PortalUserSeed | null {
+  try {
+    const userSlug = buildUserSlug(email);
+    const platformRoot =
+      process.env.PLATFORM_ROOT || path.resolve(process.cwd(), "..");
+    const workbenchPath = path.join(
+      platformRoot,
+      "data",
+      "users",
+      userSlug,
+      ".meiling-workbench.json",
+    );
 
-  if (!matched) {
-    return null;
+    const raw = fs.readFileSync(workbenchPath, "utf-8");
+    const config = JSON.parse(raw) as Record<string, unknown>;
+
+    if (
+      typeof config.userID === "string" &&
+      config.userID.toLowerCase() === email &&
+      typeof config.password === "string" &&
+      safeEqual(config.password, password)
+    ) {
+      return {
+        email,
+        password: config.password as string,
+        userSlug,
+        tenantId: "default",
+        tenantName: (config.tenantName as string) || "默认租户",
+        displayName: (config.userID as string),
+        role: "owner",
+        methodologyPackKey: (config.methodologyPackKey as string) || "base",
+        methodologyPackName:
+          (config.methodologyPackName as string) || "基础包",
+        methodologyPackVersion:
+          (config.methodologyPackVersion as string) || "v1",
+      };
+    }
+  } catch {
+    // File doesn't exist or can't be parsed — user not found
   }
 
-  if (!safeEqual(matched.password, password)) {
-    return null;
-  }
-
-  return toSessionUser(matched);
+  return null;
 }
 
-export function getPortalUserSeedByEmail(email: string): PortalUserSeed | null {
+export function authenticateUser(
+  email: string,
+  password: string,
+): SessionUser | null {
   const normalizedEmail = email.trim().toLowerCase();
-  return getPortalUsers().find((user) => user.email.toLowerCase() === normalizedEmail) || null;
+
+  // First, try in-memory portal users (env vars or hardcoded demo users)
+  const matched = getPortalUsers().find(
+    (user) => user.email.toLowerCase() === normalizedEmail,
+  );
+
+  if (matched) {
+    if (!safeEqual(matched.password, password)) {
+      return null;
+    }
+    return toSessionUser(matched);
+  }
+
+  // Fallback: try filesystem accounts (admin-created)
+  const fsUser = authenticateFilesystemUser(normalizedEmail, password);
+  if (fsUser) {
+    return toSessionUser(fsUser);
+  }
+
+  return null;
+}
+
+export function getPortalUserSeedByEmail(
+  email: string,
+): PortalUserSeed | null {
+  const normalizedEmail = email.trim().toLowerCase();
+  return (
+    getPortalUsers().find(
+      (user) => user.email.toLowerCase() === normalizedEmail,
+    ) || null
+  );
 }

@@ -1,3 +1,4 @@
+import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -48,19 +49,45 @@ function normalizePackKey(value: string | undefined): MethodologyPackKey {
   throw new Error(`Unknown methodology pack key: ${value}`)
 }
 
-export function defaultMethodologyPackSourceRoot() {
-  // 生产部署：优先使用二进制文件同级的 meiling/assets/git
-  // Bun compile 会把二进制输出到 dist/{name}/bin/opencode，
-  // 资产文件需要被构建脚本复制到同级目录
-  const execDir = path.dirname(process.execPath)
-  const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
-  // 开发模式：源码树中的 meiling/assets/git
-  const sourceRelative = path.join(repoRoot(), "meiling", "assets", "git")
+/** 判断一个路径是否为有效的 Meiling 资产根（至少包含 使用指南.md） */
+function looksLikeMeilingSourceRoot(dir: string): boolean {
+  try {
+    return fs.existsSync(path.join(dir, "使用指南.md"))
+  } catch {
+    return false
+  }
+}
 
-  // 如果可执行文件路径不像是开发工具（node/bun/tsx），优先使用二进制同级路径
+/**
+ * 按优先级探测 Meiling 资产源根目录：
+ * 1. process.execPath 同级目录（生产二进制部署）
+ * 2. 源码树中的 meiling/assets/git（开发模式）
+ * 返回第一个存在的路径；都不存在则返回二进制同级路径并交由调用方报错
+ */
+export function defaultMethodologyPackSourceRoot(): string {
+  const execDir = path.dirname(process.execPath)
   const execName = path.basename(process.execPath, path.extname(process.execPath))
   const isDevRuntime = ["node", "bun", "tsx", "ts-node"].includes(execName)
-  return isDevRuntime ? sourceRelative : binaryAdjacent
+
+  if (isDevRuntime) {
+    const sourceTreePath = path.join(repoRoot(), "meiling", "assets", "git")
+    if (looksLikeMeilingSourceRoot(sourceTreePath)) return sourceTreePath
+    // 开发模式下源码树路径是首选，不存在就退到二进制同级
+    const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
+    if (looksLikeMeilingSourceRoot(binaryAdjacent)) return binaryAdjacent
+    return sourceTreePath // 都不存在，返回源码路径让 assertFixedSource 报明确错误
+  }
+
+  // 生产模式：二进制同级优先
+  const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
+  if (looksLikeMeilingSourceRoot(binaryAdjacent)) return binaryAdjacent
+
+  // 退而求其次，尝试源码路径（兼容直接跑 dist 下二进制但 repo 还在的场景）
+  const sourceTreePath = path.join(repoRoot(), "meiling", "assets", "git")
+  if (looksLikeMeilingSourceRoot(sourceTreePath)) return sourceTreePath
+
+  // 都不存在，返回生产模式首选路径
+  return binaryAdjacent
 }
 
 export function resolveMethodologyPack(input: {
@@ -71,14 +98,21 @@ export function resolveMethodologyPack(input: {
 } = {}): MethodologyPackDefinition {
   const packKey = normalizePackKey(input.packKey)
   const entry = PACK_REGISTRY[packKey]
-  const fallbackSourceRoot = defaultMethodologyPackSourceRoot()
+
+  // 环境变量覆盖优先级最高 — 但仅当目录确实存在时才使用
+  const envOverride =
+    input.sourceRoot?.trim() ||
+    process.env.MEILING_FIXED_ASSET_SOURCE_DIR?.trim() ||
+    process.env[entry.sourceEnv]?.trim()
+
+  const sourceRoot = envOverride && looksLikeMeilingSourceRoot(envOverride)
+    ? envOverride
+    : defaultMethodologyPackSourceRoot()
+
   return {
     packKey,
     packName: envOr(entry.packName, input.packName),
     packVersion: envOr("v1", input.packVersion),
-    sourceRoot: envOr(
-      fallbackSourceRoot,
-      input.sourceRoot ?? process.env[entry.sourceEnv] ?? (packKey === "base" ? fallbackSourceRoot : undefined),
-    ),
+    sourceRoot,
   }
 }

@@ -232,7 +232,29 @@ export async function prepareMeilingWorkbench(
   overrides: Partial<MeilingWorkbenchConfig> = {},
 ): Promise<PreparedMeilingWorkbench> {
   const config = resolveMeilingWorkbenchConfig(overrides)
-  await assertFixedSource(config.fixedSourceRoot)
+
+  try {
+    await assertFixedSource(config.fixedSourceRoot)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error(
+      `[workbench-assets] Meiling assets not available — workbench disabled.\n` +
+        `  Source root: ${config.fixedSourceRoot}\n` +
+        `  Error: ${msg}\n` +
+        `  Set MEILING_FIXED_ASSET_SOURCE_DIR to a valid methodology pack directory, or ensure ` +
+        `meiling/assets/git/ exists next to the binary.`,
+    )
+    return {
+      enabled: false,
+      fixedSourceRoot: config.fixedSourceRoot,
+      workspaceRoot: config.workspaceRoot,
+      dataRoot: config.dataRoot,
+      methodologyPackKey: config.methodologyPackKey,
+      methodologyPackName: config.methodologyPackName,
+      methodologyPackVersion: config.methodologyPackVersion,
+      assets: [],
+    }
+  }
 
   const workspaceRoot = await ensureWritableDir(
     config.workspaceRoot,
@@ -368,6 +390,21 @@ export async function ensureMeilingUserWorkspace(
   overrides: Partial<MeilingWorkbenchConfig> = {},
 ): Promise<PreparedMeilingUserWorkspace> {
   const preparedRoot = await prepareMeilingWorkbench(overrides)
+
+  if (!preparedRoot.enabled) {
+    // 工作台级资产不可用，返回 disabled 用户工作区
+    const partial = resolveMeilingUserWorkspace(userID, {
+      ...overrides,
+      fixedSourceRoot: preparedRoot.fixedSourceRoot,
+      workspaceRoot: preparedRoot.workspaceRoot,
+      dataRoot: preparedRoot.dataRoot,
+    })
+    return {
+      ...partial,
+      enabled: false,
+      assets: [],
+    }
+  }
   const resolved = resolveMeilingUserWorkspace(userID, {
     ...overrides,
     fixedSourceRoot: preparedRoot.fixedSourceRoot,
