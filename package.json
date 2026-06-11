@@ -4,7 +4,7 @@
   "packageManager": "bun@1.3.14",
   "scripts": {
     "build": "cd vendor/opencode && bun install --frozen-lockfile --filter './packages/opencode' --filter './packages/app' && bun run --cwd packages/opencode build --single && cp -r meiling/assets packages/opencode/dist/",
-    "start": "bash start.sh"
+    "start": "./start.sh"
   },
   "devDependencies": {
     "bun-types": "latest"

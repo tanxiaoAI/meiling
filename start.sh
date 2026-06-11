@@ -1,5 +1,5 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 export MEILING_FIXED_ASSET_SOURCE_DIR="$SCRIPT_DIR/vendor/opencode/packages/opencode/dist/assets/git"
