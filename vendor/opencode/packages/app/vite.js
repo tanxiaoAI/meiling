@@ -28,10 +28,6 @@ export default [
         define: {
           "import.meta.env.VITE_OPENCODE_CHANNEL": JSON.stringify(channel),
         },
-        esbuild: {
-          jsx: "automatic",
-          jsxImportSource: "solid-js",
-        },
         worker: {
           format: "es",
         },
@@ -49,4 +45,15 @@ export default [
   },
   tailwindcss(),
   solidPlugin(),
+  {
+    name: "fix-esbuild-jsx",
+    config() {
+      return {
+        esbuild: {
+          jsx: "automatic",
+          jsxImportSource: "solid-js",
+        },
+      }
+    },
+  },
 ]
