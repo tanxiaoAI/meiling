@@ -1,7 +1,5 @@
 # AI 自媒体系统 SaaS - 快速开始指南
 
-当前仓库以 `vendor/opencode` 的源码模式为主线。旧的 Docker 封装链路已归档到 `archive/docker-legacy/`，不再作为默认排查和部署依据。
-
 ## 文档导航
 
 - [README.md](README.md) - 仓库总览
@@ -10,7 +8,6 @@
 - [docs/operation.md](docs/operation.md) - 运维手册
 - [docs/customer-sop.md](docs/customer-sop.md) - 客户开户 SOP
 - [scripts/README.md](scripts/README.md) - 自动化脚本说明
-- [archive/docker-legacy/README.md](archive/docker-legacy/README.md) - 历史 Docker 链路归档说明
 
 ## 5 分钟启动源码模式
 
@@ -58,7 +55,6 @@ saas-platform/
 ├── scripts/                  # 源码模式启动与运维脚本
 ├── docs/                     # 当前文档
 ├── deployment/env-templates/ # 环境变量模板
-└── archive/docker-legacy/    # 已归档的旧 Docker 配置与文档
 ```
 
 ## 当前判断原则
@@ -66,12 +62,6 @@ saas-platform/
 - 改 UI、交互、入口：优先看 `vendor/opencode/`
 - 查本地运行问题：优先看 `scripts/run-opencode-source-*.sh`
 - 查 Zeabur 源码部署问题：优先核对根目录、Install/Build/Start 命令
-- 查历史 Docker 实现：只去 `archive/docker-legacy/`
-
-## 注意
-
-- `scripts/create-tenant.sh` 仍保留镜像部署假设，当前不应把它当作源码模式排错依据
-- `docs/plans/`、`PROJECT-SUMMARY.md`、`VALIDATION.md` 中仍可能保留历史 Docker 语境，它们属于历史记录，不代表当前主线
 
 ### 访问控制
 
@@ -79,7 +69,7 @@ saas-platform/
 |------|------|------|------|
 | /workspace/inputs/ | ✓ | ✓ | ✓ |
 | /workspace/outputs/ | ✓ | ✗ | ✗ |
-| /opt/core-assets/ | ✗ | ✗ | ✗ |
+| vendor/opencode/meiling/assets/git/ | ✗ | ✗ | ✗ |
 
 ## 🔧 常用操作
 

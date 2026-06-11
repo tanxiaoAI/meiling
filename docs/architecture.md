@@ -73,7 +73,7 @@ tenant-c001/
 │   │   ├── benchmark-contents/
 │   │   ├── outputs/
 │   │   └── results/
-│   ├── /opt/core-assets/  # 核心资产（隐藏）
+│   └── meiling/assets/git/  # 核心资产（隐藏）
 │   │   ├── system/
 │   │   ├── methodology/
 │   │   ├── workflows/
@@ -112,7 +112,7 @@ OpenCode Web
     ↓ (用户触发任务)
 OpenCode Server
     ↓ (加载核心资产)
-/opt/core-assets/
+vendor/opencode/meiling/assets/git/
     ├── 读取方法论
     ├── 加载 prompt 模板
     └── 执行 skill 工作流
@@ -152,7 +152,7 @@ AI 模型 API (Claude)
 | /workspace/benchmark-contents/ | ✓ | ✗ | ✗ |
 | /workspace/outputs/ | ✓ | ✗ | ✗ |
 | /workspace/results/ | ✓ | ✗ | ✗ |
-| /opt/core-assets/ | ✗ | ✗ | ✗ |
+| vendor/opencode/meiling/assets/git/ | ✗ | ✗ | ✗ |
 | /workspace-internal/ | ✗ | ✗ | ✗ |
 
 #### 文件类型限制
@@ -165,7 +165,7 @@ AI 模型 API (Claude)
 ### 4.2 核心资产保护
 
 **保护方式**：
-1. 内置到 Docker 镜像的 `/opt/core-assets/`
+1. 内置在源码的 `vendor/opencode/meiling/assets/git/` 目录中
 2. 设置为只读权限（444/555）
 3. 不映射到客户可见的文件树
 4. OpenCode 配置隐藏该路径

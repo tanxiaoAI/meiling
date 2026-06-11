@@ -2,7 +2,7 @@
 
 ## 目标
 
-这份文档对应 `vendor/opencode` 里的真实 OpenCode 源码，作为当前主线，不再默认依赖历史 Docker 封装层。
+这份文档对应 `vendor/opencode` 里的真实 OpenCode 源码，作为当前主线。
 
 适用场景：
 
@@ -20,8 +20,6 @@
 
 - `vendor/opencode`
   OpenCode 上游源码，先保持上游原样
-- `archive/docker-legacy/`
-  已归档的历史 Docker 封装链路，仅供追溯旧实现时参考
 - `scripts/bootstrap-opencode-source.sh`
   安装 Bun 和 OpenCode 依赖
 - `scripts/run-opencode-source-backend.sh`
@@ -101,9 +99,7 @@ bash scripts/run-opencode-source-web.sh
 - 页面和交互改造：
   用源码模式
 - Zeabur 排错：
-  先核对源码部署的根目录、构建命令和启动命令，不要先入为主套用旧 Docker 配置
-- 历史 Docker 文件：
-  只在需要追溯旧实现时查看 `archive/docker-legacy/`
+  先核对源码部署的根目录、构建命令和启动命令
 - 不要直接在 `vendor/opencode` 大面积散改，先锁版本，再做小步定制
 
 ## 生产部署建议

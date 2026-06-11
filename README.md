@@ -16,8 +16,6 @@ saas-platform/
 │   └── README.md         # 后台使用说明
 ├── deployment/           # 部署配置
 │   └── env-templates/    # 环境变量模板
-├── archive/
-│   └── docker-legacy/    # 已归档的 Docker 封装链路与旧部署文档
 ├── scripts/              # 自动化脚本
 │   ├── create-tenant.sh  # 客户开户脚本
 │   ├── backup.sh         # 数据备份脚本
@@ -61,9 +59,7 @@ saas-platform/
 
 - 已将 OpenCode 上游源码纳入 `vendor/opencode`
 - 当前锁定版本为 `v1.16.2`
-- 当前以 `vendor/opencode/` 源码模式为主线
-- 旧的 `opencode-service/` 与 `deployment/zeabur/` 已归档到 `archive/docker-legacy/`
-- 排查 Zeabur 源码部署问题时，不再默认以 Docker 封装链路为依据
+- 当前以 `vendor/opencode/` 源码模式为主线，通过 Zeabur Git 连接直接部署
 
 ## 文件可见性策略
 
@@ -116,10 +112,6 @@ OPENCODE_PORT=4096 bash scripts/start-opencode-binary.sh
 - 源码前端：`http://127.0.0.1:4444`
 - 源码默认项目：`saas-platform` 根目录，可通过 `OPENCODE_DEFAULT_PROJECT_DIR` 覆盖
 
-### 历史 Docker 链路
-
-旧的 Docker 封装部署文件、Compose 配置和说明文档已移动到 `archive/docker-legacy/`，仅供追溯历史实现时参考。
-
 ### 启动客户门户
 ```bash
 cd portal
@@ -146,7 +138,6 @@ cd scripts
 - [产品方案](../saas产品方案.md) - 完整的产品设计规格
 - [架构设计](docs/architecture.md) - 详细的架构说明
 - [源码模式](docs/opencode-source-mode.md) - OpenCode 源码纳入与本地运行方式
-- [历史 Docker 部署归档](archive/docker-legacy/docs/deployment.md) - 已归档的旧部署流程
 - [运维手册](docs/operation.md) - 日常运维操作
 - [上线清单](docs/production-readiness.md) - 正式上线前缺口和优先级
 

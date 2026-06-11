@@ -398,9 +398,7 @@ zeabur logs \
 
 ```bash
 # 当前主线优先更新源码模式对应的仓库内容和 Zeabur 自定义命令
-# 历史 Docker 封装链路已归档到 archive/docker-legacy/
-# 如果确实要回看旧镜像更新流程，请查看：
-# archive/docker-legacy/docs/deployment.md
+# 已经在 Git 中移除 Docker 历史封装链路，仅保留源码部署方式
 ```
 
 ### 5.3 备份和恢复
@@ -591,8 +589,7 @@ for tenant in c001 c002 c003; do
   ./backup.sh $tenant
 done
 
-# 3. 在测试环境验证新版本
-docker run --rm ai-media-opencode:v2.0.0 /app/test.sh
+# 3. 通过 Git push 或 Zeabur 重新部署验证新版本
 ```
 
 **执行升级**：
