@@ -36,7 +36,6 @@ BASE_DOMAIN=${3:-"yourdomain.com"}
 TENANT_DOMAIN="${TENANT_ID}.${BASE_DOMAIN}"
 PROJECT_NAME="tenant-${TENANT_ID}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENCODE_IMAGE="${OPENCODE_IMAGE:-}"
 
 if ! [[ "$TENANT_ID" =~ ^[a-z0-9-]+$ ]]; then
     log_error "tenant_id 只能包含小写字母、数字和连字符"
@@ -48,7 +47,6 @@ log_info "租户 ID: $TENANT_ID"
 log_info "租户名称: $TENANT_NAME"
 log_info "域名: $TENANT_DOMAIN"
 log_info "项目名称: $PROJECT_NAME"
-log_info "镜像版本: $OPENCODE_IMAGE"
 echo ""
 
 # 检查是否安装了必需工具
@@ -97,10 +95,12 @@ if [ -z "$MODEL_NAME" ]; then
     fi
 fi
 
-if [ -z "$OPENCODE_IMAGE" ]; then
-    log_error "环境变量 OPENCODE_IMAGE 未设置"
-    log_info "示例: export OPENCODE_IMAGE=\"ghcr.io/your-org/ai-media-opencode:v1.0.0\""
-    exit 1
+if [ "$MODEL_PROVIDER" = "deepseek" ] && [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+    log_warn "DEEPSEEK_API_KEY 未设置，模型调用将不可用"
+fi
+
+if [ "$MODEL_PROVIDER" = "anthropic" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+    log_warn "ANTHROPIC_API_KEY 未设置，模型调用将不可用"
 fi
 
 # 生成安全密码
@@ -149,17 +149,12 @@ zeabur volume create \
 log_info "✓ Volume 创建成功"
 echo ""
 
-log_info "步骤 4/8: 部署 OpenCode 服务"
-zeabur service create \
-    --project "$PROJECT_NAME" \
-    --name "opencode-${TENANT_ID}" \
-    --type "docker" \
-    --image "$OPENCODE_IMAGE" \
-    --port "4096" || {
-    log_error "创建 OpenCode 服务失败"
-    exit 1
-}
-log_info "✓ OpenCode 服务创建成功"
+log_info "步骤 4/8: 部署 OpenCode 源码服务"
+log_info "  请在 Zeabur 控制台中手动操作："
+log_info "  1. 将 GitHub 仓库连接到项目"
+log_info "  2. 设置 Root Directory 为 saas-platform"
+log_info "  3. Zeabur 将自动检测 Bun 项目并构建/启动"
+echo ""
 echo ""
 
 log_info "步骤 5/8: 配置环境变量"

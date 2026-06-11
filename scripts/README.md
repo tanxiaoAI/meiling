@@ -2,8 +2,8 @@
 
 本目录包含用于部署、管理和维护 AI 自媒体系统 SaaS 的自动化脚本。
 
-注意：当前主线以 `vendor/opencode` 源码模式为准，`create-tenant.sh` 仍保留镜像部署假设，不应作为源码模式排错依据。
-注意：已经落地的 OpenCode 主线脚本包括源码模式脚本和生产二进制脚本；其余条目若仓库中不存在，仍属于规划项。
+注意：当前主线以 `vendor/opencode` 源码模式为准，无 Docker 依赖。
+注意：已经落地的 OpenCode 主线脚本包括源码模式脚本和生产二进制脚本；create-tenant.sh 已适配源码模式；标记为"规划中"的脚本尚未实现。
 
 ## 脚本列表
 
@@ -35,8 +35,7 @@
 - 日志记录：`tenant_creation_log.txt`
 
 **环境变量**：
-- `DEEPSEEK_API_KEY` - 必需
-- `OPENCODE_IMAGE` - 必需，生产镜像地址，例如 `ghcr.io/your-org/ai-media-opencode:v1.0.0`
+- `DEEPSEEK_API_KEY` 或 `ANTHROPIC_API_KEY` - 用于模型调用（可选，不设置也能部署但无法对话）
 
 ---
 
@@ -126,52 +125,18 @@ OPENCODE_PORT=4096 bash scripts/start-opencode-binary.sh
 
 ---
 
-### 6. update-all-tenants.sh
+### 6. update-all-tenants.sh（规划中）
 
 **用途**：批量更新所有租户到新版本
 
-**用法**：
-```bash
-./update-all-tenants.sh [image_version]
-```
-
-**示例**：
-```bash
-./update-all-tenants.sh v1.1.0
-```
-
-**功能**：
-- 查找所有租户项目
-- 逐个更新镜像版本
-- 验证更新成功
-- 记录更新日志
-
-**特性**：
-- 逐个更新，避免同时重启
-- 每个更新间隔 30 秒
-- 自动跳过失败的更新并继续
+通过 Zeabur 重新部署或 Git push 触发，无需镜像版本号。
 
 ---
 
-### 7. health-check.sh
+### 7. health-check.sh（规划中）
 
 **用途**：检查所有租户服务健康状态
 
-**用法**：
-```bash
-./health-check.sh
-```
-
-**功能**：
-- 检查所有租户服务状态
-- 测试健康检查端点
-- 发送告警邮件（如有问题）
-
-**部署为定时任务**：
-```bash
-# 每 5 分钟检查一次
-*/5 * * * * /path/to/health-check.sh
-```
 
 ---
 
@@ -263,13 +228,11 @@ zeabur --version
 # 登录 Zeabur
 zeabur login
 
-# 设置 API 密钥
+# 设置 API 密钥（可选，仅 create-tenant.sh 需要）
 export DEEPSEEK_API_KEY="sk-xxxxx"
-export OPENCODE_IMAGE="ghcr.io/your-org/ai-media-opencode:v1.0.0"
 
 # （可选）添加到 ~/.bashrc 或 ~/.zshrc
 echo 'export DEEPSEEK_API_KEY="sk-xxxxx"' >> ~/.bashrc
-echo 'export OPENCODE_IMAGE="ghcr.io/your-org/ai-media-opencode:v1.0.0"' >> ~/.bashrc
 ```
 
 ### 设置权限
@@ -348,7 +311,6 @@ done
    ```bash
    which zeabur
    echo $DEEPSEEK_API_KEY
-   echo $OPENCODE_IMAGE
    ```
 
 3. **查看详细日志**：
@@ -448,6 +410,6 @@ log_info "执行完成"
 ## 相关文档
 
 - [源码模式说明](../docs/opencode-source-mode.md)
-- [历史 Docker 部署归档](../archive/docker-legacy/docs/deployment.md)
+- [生产就绪清单](../docs/production-readiness.md)
 - [运维手册](../docs/operation.md)
 - [客户开户 SOP](../docs/customer-sop.md)
