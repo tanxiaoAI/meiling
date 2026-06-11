@@ -4,7 +4,7 @@
   "packageManager": "bun@1.3.14",
   "scripts": {
     "build": "cd vendor/opencode && bun install --frozen-lockfile --filter './packages/opencode' --filter './packages/app' && bun run --cwd packages/opencode build --single",
-    "start": "BIN=$(find vendor/opencode/packages/opencode/dist -path '*/bin/opencode' -type f | head -1) && exec \"$BIN\" serve --hostname 0.0.0.0 --port ${PORT:-4096}"
+    "start": "export MEILING_FIXED_ASSET_SOURCE_DIR=\"$(pwd)/vendor/opencode/meiling/assets/git\" && BIN=$(find vendor/opencode/packages/opencode/dist -path '*/bin/opencode' -type f | head -1) && exec \"$BIN\" serve --hostname 0.0.0.0 --port ${PORT:-4096}"
   },
   "devDependencies": {
     "bun-types": "latest"
