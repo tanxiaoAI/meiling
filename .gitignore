@@ -1,41 +1,52 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies (massive, never commit)
+node_modules/
+**/node_modules/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Build outputs
+dist/
+.next/
+out/
+build/
+.artifacts/
+*.tsbuildinfo
 
-# testing
-/coverage
+# OpenCode build artifacts
+vendor/opencode/packages/app/dist/
+vendor/opencode/packages/opencode/dist/
 
-# next.js
-/.next/
-/out/
+# Environment (contains secrets, keys)
+.env
+.env.*
+!.env.template
 
-# production
-/build
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# misc
+# OS
 .DS_Store
-*.pem
 
-# debug
+# Debug / Runtime dumps
+.dbg/
+.trae/
+
+# Local runtime data
+workspace/
+data/
+
+# Archive dir - keep in repo for reference
+# archive/
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
+# Misc
+*.pem
 .vercel
-
-# typescript
-*.tsbuildinfo
 next-env.d.ts

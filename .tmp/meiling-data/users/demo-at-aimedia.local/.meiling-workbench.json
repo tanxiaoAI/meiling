@@ -1,0 +1,46 @@
+{
+  "fixedSourceRoot": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/vendor/opencode/meiling/assets/git",
+  "workspaceRoot": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace",
+  "dataRoot": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-data",
+  "userID": "demo@aimedia.local",
+  "userSlug": "demo-at-aimedia.local",
+  "workspaceDirectory": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local",
+  "dataDirectory": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-data/users/demo-at-aimedia.local",
+  "assets": [
+    {
+      "name": "05-我方资料",
+      "kind": "dynamic",
+      "type": "dir",
+      "source": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/05-我方资料",
+      "target": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/05-我方资料"
+    },
+    {
+      "name": "06-沉淀结论",
+      "kind": "dynamic",
+      "type": "dir",
+      "source": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/06-沉淀结论",
+      "target": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/06-沉淀结论"
+    },
+    {
+      "name": "07-记录表",
+      "kind": "dynamic",
+      "type": "dir",
+      "source": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/07-记录表",
+      "target": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/07-记录表"
+    },
+    {
+      "name": "08-对标账号",
+      "kind": "dynamic",
+      "type": "dir",
+      "source": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/08-对标账号",
+      "target": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/08-对标账号"
+    },
+    {
+      "name": "09-对标内容",
+      "kind": "dynamic",
+      "type": "dir",
+      "source": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/09-对标内容",
+      "target": "/Users/tanxiao/Desktop/AI自媒体系统开发/saas-platform/.tmp/meiling-workspace/users/demo-at-aimedia.local/09-对标内容"
+    }
+  ]
+}

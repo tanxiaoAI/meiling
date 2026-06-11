@@ -1,0 +1,86 @@
+# Zeabur 服务配置
+# 用于定义服务的构建和运行时配置
+
+services:
+  # OpenCode 服务
+  opencode:
+    build:
+      context: ../../opencode-service
+      dockerfile: Dockerfile
+
+    # 环境变量（从 Zeabur 环境变量面板设置）
+    environment:
+      - TENANT_ID=${TENANT_ID}
+      - TENANT_NAME=${TENANT_NAME}
+      - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME}
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}
+      - DATABASE_URL=${DATABASE_URL}
+      - MODEL_PROVIDER=${MODEL_PROVIDER}
+      - MODEL_NAME=${MODEL_NAME}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - WORKSPACE_DIR=/workspace
+      - CORE_ASSETS_DIR=/opt/core-assets
+      - INTERNAL_DIR=/workspace-internal
+      - NODE_ENV=production
+
+    # Volume 挂载
+    volumes:
+      - workspace:/workspace
+
+    # 端口映射
+    ports:
+      - "4096:4096"
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 2 http://localhost:4096/global/health 2>/dev/null || echo 000); [ \"$code\" = \"200\" ] || [ \"$code\" = \"401\" ] || [ \"$code\" = \"301\" ] || [ \"$code\" = \"302\" ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+    # 重启策略
+    restart: unless-stopped
+
+    # 依赖服务
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:14-alpine
+
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+# Volumes 定义
+volumes:
+  workspace:
+    driver: local
+  postgres-data:
+    driver: local
