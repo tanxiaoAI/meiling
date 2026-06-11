@@ -179,13 +179,22 @@ async function replaceWithSymlink(source: string, target: string) {
 
 async function assertFixedSource(root: string) {
   if (!(await exists(root))) {
-    throw new Error(`Missing Meiling fixed asset source: ${root}`)
+    throw new Error(
+      `Missing Meiling fixed asset source: ${root}\n` +
+        `Set MEILING_FIXED_ASSET_SOURCE_DIR to the correct assets directory.\n` +
+        `Current executable: ${process.execPath}\n` +
+        `Expected assets at: ${path.join(path.dirname(process.execPath), "meiling", "assets", "git")}`,
+    )
   }
 
   for (const name of [...FIXED_FILES, ...FIXED_DIRS]) {
     const target = path.join(root, name)
     if (!(await exists(target))) {
-      throw new Error(`Missing Meiling asset: ${target}`)
+      throw new Error(
+        `Missing Meiling asset: ${target}\n` +
+          `The asset source root is: ${root}\n` +
+          `Set MEILING_FIXED_ASSET_SOURCE_DIR to a directory containing the required methodology pack files.`,
+      )
     }
   }
 }

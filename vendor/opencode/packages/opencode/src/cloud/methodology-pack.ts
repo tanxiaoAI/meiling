@@ -49,7 +49,18 @@ function normalizePackKey(value: string | undefined): MethodologyPackKey {
 }
 
 export function defaultMethodologyPackSourceRoot() {
-  return path.join(repoRoot(), "meiling", "assets", "git")
+  // 生产部署：优先使用二进制文件同级的 meiling/assets/git
+  // Bun compile 会把二进制输出到 dist/{name}/bin/opencode，
+  // 资产文件需要被构建脚本复制到同级目录
+  const execDir = path.dirname(process.execPath)
+  const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
+  // 开发模式：源码树中的 meiling/assets/git
+  const sourceRelative = path.join(repoRoot(), "meiling", "assets", "git")
+
+  // 如果可执行文件路径不像是开发工具（node/bun/tsx），优先使用二进制同级路径
+  const execName = path.basename(process.execPath, path.extname(process.execPath))
+  const isDevRuntime = ["node", "bun", "tsx", "ts-node"].includes(execName)
+  return isDevRuntime ? sourceRelative : binaryAdjacent
 }
 
 export function resolveMethodologyPack(input: {

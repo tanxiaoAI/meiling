@@ -196,6 +196,15 @@ for (const item of targets) {
     },
   })
 
+  // 复制 Meiling 方法论文档到二进制同级目录，确保部署环境能找到资产
+  const meilingSource = path.resolve(dir, "meiling", "assets")
+  const meilingDest = path.resolve(dir, `dist/${name}/bin/meiling/assets`)
+  if (fs.existsSync(meilingSource)) {
+    await $`mkdir -p ${meilingDest}`
+    await $`cp -r ${meilingSource}/. ${meilingDest}/`
+    console.log(`Copied Meiling assets to dist/${name}/bin/meiling/assets/`)
+  }
+
   // Smoke test: only run if binary is for current platform
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
     const binaryPath = `dist/${name}/bin/opencode`
