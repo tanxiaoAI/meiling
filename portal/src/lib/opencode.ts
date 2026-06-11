@@ -1,8 +1,45 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import type { SessionUser } from "@/lib/auth";
-import { getDefaultOpenCodeAppUrl } from "@/lib/env";
+import { getDefaultOpenCodeAppUrl, getSessionSecret } from "@/lib/env";
+
+function signStartupToken(payload: string): string {
+  return createHmac("sha256", getSessionSecret())
+    .update(payload)
+    .digest("base64url");
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  if (leftBuffer.length !== rightBuffer.length) return false;
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
 
 function createStartupToken(email: string) {
-  return Buffer.from(`${email}:`, "utf8").toString("base64");
+  const payload = Buffer.from(
+    JSON.stringify({ email, iat: Math.floor(Date.now() / 1000) }),
+    "utf8",
+  ).toString("base64url");
+  const signature = signStartupToken(payload);
+  return `${payload}.${signature}`;
+}
+
+export function verifyStartupToken(token: string): { email: string } | null {
+  const [payload, signature] = token.split(".");
+  if (!payload || !signature) return null;
+  if (!constantTimeEqual(signature, signStartupToken(payload))) return null;
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    if (typeof decoded.email !== "string" || !decoded.email) return null;
+    const age = Math.floor(Date.now() / 1000) - (decoded.iat || 0);
+    if (age < 0 || age > 300) return null;
+    return { email: decoded.email };
+  } catch {
+    return null;
+  }
 }
 
 function encodeDirectory(directory: string) {

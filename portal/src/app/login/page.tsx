@@ -9,6 +9,7 @@ const errorMap: Record<string, string> = {
   password_required: "请输入登录密码。",
   email_invalid: "请输入有效的邮箱地址。",
   service_unavailable: "对话工作台暂时不可用，请稍后重试或联系管理员。",
+  rate_limited: "登录尝试过于频繁，请等待一分钟后重试。",
 };
 
 export default async function LoginPage({

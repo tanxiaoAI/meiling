@@ -1,4 +1,5 @@
 import fs from "node:fs/promises"
+import { createHash } from "node:crypto"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -22,6 +23,7 @@ type WorkbenchAsset = {
 
 type WorkbenchManifest = {
   fixedSourceRoot: string
+  fixedSourceHash?: string
   workspaceRoot: string
   dataRoot: string
   methodologyPackKey: MethodologyPackKey
@@ -295,12 +297,32 @@ function preparedUserWorkspace(
 }
 
 function workspacePrepKey(resolved: PreparedMeilingUserWorkspace) {
+  // 不在此处计算 fixedSourceHash，因为那是异步操作。
+  // 改为在 ensureMeilingUserWorkspace 的异步闭包中用单独的 key。
   return [
     resolved.workspaceDirectory,
     resolved.packDirectory,
     resolved.methodologyPackKey,
     resolved.methodologyPackVersion,
   ].join("::")
+}
+
+async function computeFixedSourceHash(fixedSourceRoot: string): Promise<string> {
+  const hash = createHash("sha256")
+  for (const name of [...FIXED_FILES, ...FIXED_DIRS]) {
+    const entryPath = path.join(fixedSourceRoot, name)
+    try {
+      const stat = await fs.stat(entryPath)
+      hash.update(name)
+      if (stat.isDirectory()) {
+        const files = await fs.readdir(entryPath)
+        hash.update(files.sort().join(","))
+      }
+    } catch {
+      hash.update(`missing:${name}`)
+    }
+  }
+  return hash.digest("hex")
 }
 
 async function canReusePreparedWorkspace(
@@ -318,6 +340,11 @@ async function canReusePreparedWorkspace(
   if (manifest.methodologyPackKey !== resolved.methodologyPackKey) return
   if (manifest.methodologyPackVersion !== resolved.methodologyPackVersion) return
   if (!(await exists(resolved.contextPath))) return
+
+  // 检测方法论文本内容是否变更
+  const currentHash = await computeFixedSourceHash(resolved.fixedSourceRoot)
+  if (manifest.fixedSourceHash !== currentHash) return
+
   for (const name of FIXED_FILES) {
     if (!(await exists(path.join(resolved.packDirectory, name)))) return
   }
@@ -382,8 +409,11 @@ export async function ensureMeilingUserWorkspace(
       pack_version: resolved.methodologyPackVersion,
     })
 
+    const fixedSourceHash = await computeFixedSourceHash(resolved.fixedSourceRoot)
+
     await writeManifest(manifestPath, {
       fixedSourceRoot: resolved.fixedSourceRoot,
+      fixedSourceHash,
       workspaceRoot: resolved.workspaceRoot,
       dataRoot: resolved.dataRoot,
       methodologyPackKey: resolved.methodologyPackKey,

@@ -1,12 +1,33 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { authenticateUser } from "@/lib/auth";
 import { SESSION_COOKIE_NAME } from "@/lib/constants";
 import { buildOpenCodeAppUrl } from "@/lib/opencode";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { createSessionCookieValue } from "@/lib/session";
 
-export async function POST(request: Request) {
+const LOGIN_RATE_LIMIT_MAX = 10;
+const LOGIN_RATE_LIMIT_WINDOW_MS = 60_000;
+
+export async function POST(request: NextRequest) {
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+
+  const rateLimit = checkRateLimit(
+    `login:${clientIp}`,
+    LOGIN_RATE_LIMIT_MAX,
+    LOGIN_RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (!rateLimit.allowed) {
+    return NextResponse.redirect(
+      new URL("/login?error=rate_limited", request.url),
+      303,
+    );
+  }
   const formData = await request.formData();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
@@ -45,46 +66,5 @@ export async function POST(request: Request) {
     portalOrigin: new URL(request.url).origin,
   });
 
-  try {
-    const appOrigin = new URL(redirectUrl).origin;
-    const response = await fetch(appOrigin, {
-      signal: AbortSignal.timeout(5000),
-      redirect: "manual",
-      headers: {
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    if (!response.ok && response.status >= 500) {
-      throw new Error(`OpenCode app unavailable: ${response.status}`);
-    }
-  } catch {
-    return NextResponse.redirect(new URL("/login?error=service_unavailable", request.url), 303);
-  }
-
-  // #region debug-point A:login-redirect
-  fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "A",
-      location: "portal/src/app/api/auth/login/route.ts",
-      msg: "[DEBUG] login redirect built",
-      data: {
-        email,
-        hasUser: !!user,
-        opencodeAppUrl: user.opencodeAppUrl,
-        workspaceDirectory: user.workspaceDirectory,
-        redirectUrl,
-      },
-      ts: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
-  return NextResponse.redirect(
-    redirectUrl,
-    303,
-  );
+  return NextResponse.redirect(redirectUrl, 303);
 }

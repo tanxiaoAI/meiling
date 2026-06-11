@@ -5,22 +5,7 @@ import { cookies } from "next/headers";
 import { getSessionSecret } from "@/lib/env";
 import type { SessionUser } from "@/lib/auth";
 import { SESSION_COOKIE_NAME } from "@/lib/constants";
-
-function buildUserSlug(email: string, explicitSlug?: string): string {
-  const explicit = explicitSlug?.trim().toLowerCase();
-  if (explicit) {
-    return explicit.replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "user";
-  }
-
-  const emailSlug = email
-    .trim()
-    .toLowerCase()
-    .replace(/@/g, "-at-")
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return emailSlug || "user";
-}
+import { buildUserSlug, buildWorkspaceDirectory } from "@/lib/slug";
 
 function normalizeSessionUser(input: unknown): SessionUser | null {
   if (!input || typeof input !== "object") {
@@ -33,11 +18,13 @@ function normalizeSessionUser(input: unknown): SessionUser | null {
     return null;
   }
 
-  const userSlug = buildUserSlug(email, typeof raw.userSlug === "string" ? raw.userSlug : undefined);
+  const userSlug = raw.userSlug != null
+    ? buildUserSlug(email, String(raw.userSlug))
+    : buildUserSlug(email);
   const workspaceDirectory =
     typeof raw.workspaceDirectory === "string" && raw.workspaceDirectory.trim()
       ? raw.workspaceDirectory
-      : `/workspace/users/${userSlug}`;
+      : buildWorkspaceDirectory(userSlug);
 
   return {
     email,

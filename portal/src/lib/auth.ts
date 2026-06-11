@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { getPortalUsers } from "@/data/demo-users";
 import type { PortalUserSeed } from "@/lib/env";
+import { buildUserSlug, buildWorkspaceDirectory } from "@/lib/slug";
 
 export type SessionUser = Omit<PortalUserSeed, "password"> & {
   opencodeUrl: string;
@@ -9,24 +10,8 @@ export type SessionUser = Omit<PortalUserSeed, "password"> & {
   workspaceDirectory: string;
 };
 
-function buildUserSlug(user: PortalUserSeed): string {
-  const explicit = user.userSlug?.trim().toLowerCase();
-  if (explicit) {
-    return explicit.replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "user";
-  }
-
-  const emailSlug = user.email
-    .trim()
-    .toLowerCase()
-    .replace(/@/g, "-at-")
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return emailSlug || "user";
-}
-
 function toSessionUser(user: PortalUserSeed): SessionUser {
-  const userSlug = buildUserSlug(user);
+  const userSlug = buildUserSlug(user.email, user.userSlug);
   return {
     email: user.email,
     userSlug,
@@ -39,7 +24,7 @@ function toSessionUser(user: PortalUserSeed): SessionUser {
     methodologyPackVersion: user.methodologyPackVersion || "v1",
     opencodeUrl: user.opencodeUrl || "http://localhost:4096",
     opencodeAppUrl: user.opencodeAppUrl || "http://localhost:4444",
-    workspaceDirectory: `/workspace/users/${userSlug}`,
+    workspaceDirectory: buildWorkspaceDirectory(userSlug),
   };
 }
 
