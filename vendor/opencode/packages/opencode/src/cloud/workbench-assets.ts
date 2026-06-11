@@ -178,12 +178,22 @@ async function replaceWithSymlink(source: string, target: string) {
 }
 
 async function assertFixedSource(root: string) {
+  if (!root) {
+    throw new Error(
+      "Meiling fixed asset source root is empty — could not locate methodology pack directory.\n" +
+        `  Binary: ${process.execPath}\n` +
+        `  CWD:    ${(() => { try { return process.cwd() } catch { return "unknown" } })()}\n` +
+        "  Searched: binary-adjacent/meiling/assets/git, and walking up from binary and cwd\n" +
+        "  for vendor/opencode/meiling/assets/git or meiling/assets/git.\n" +
+        "  Ensure the meiling assets (containing 使用指南.md) are deployed with the binary.\n" +
+        "  If all else fails, set MEILING_FIXED_ASSET_SOURCE_DIR to the correct path.",
+    )
+  }
+
   if (!(await exists(root))) {
     throw new Error(
-      `Missing Meiling fixed asset source: ${root}\n` +
-        `Set MEILING_FIXED_ASSET_SOURCE_DIR to the correct assets directory.\n` +
-        `Current executable: ${process.execPath}\n` +
-        `Expected assets at: ${path.join(path.dirname(process.execPath), "meiling", "assets", "git")}`,
+      `Meiling fixed asset source does not exist: ${root}\n` +
+        `Set MEILING_FIXED_ASSET_SOURCE_DIR to a directory containing 使用指南.md.`,
     )
   }
 
@@ -192,8 +202,8 @@ async function assertFixedSource(root: string) {
     if (!(await exists(target))) {
       throw new Error(
         `Missing Meiling asset: ${target}\n` +
-          `The asset source root is: ${root}\n` +
-          `Set MEILING_FIXED_ASSET_SOURCE_DIR to a directory containing the required methodology pack files.`,
+          `The source root is: ${root}\n` +
+          `Ensure the methodology pack directory contains all required files and directories.`,
       )
     }
   }
@@ -232,29 +242,7 @@ export async function prepareMeilingWorkbench(
   overrides: Partial<MeilingWorkbenchConfig> = {},
 ): Promise<PreparedMeilingWorkbench> {
   const config = resolveMeilingWorkbenchConfig(overrides)
-
-  try {
-    await assertFixedSource(config.fixedSourceRoot)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error(
-      `[workbench-assets] Meiling assets not available — workbench disabled.\n` +
-        `  Source root: ${config.fixedSourceRoot}\n` +
-        `  Error: ${msg}\n` +
-        `  Set MEILING_FIXED_ASSET_SOURCE_DIR to a valid methodology pack directory, or ensure ` +
-        `meiling/assets/git/ exists next to the binary.`,
-    )
-    return {
-      enabled: false,
-      fixedSourceRoot: config.fixedSourceRoot,
-      workspaceRoot: config.workspaceRoot,
-      dataRoot: config.dataRoot,
-      methodologyPackKey: config.methodologyPackKey,
-      methodologyPackName: config.methodologyPackName,
-      methodologyPackVersion: config.methodologyPackVersion,
-      assets: [],
-    }
-  }
+  await assertFixedSource(config.fixedSourceRoot)
 
   const workspaceRoot = await ensureWritableDir(
     config.workspaceRoot,
@@ -390,21 +378,6 @@ export async function ensureMeilingUserWorkspace(
   overrides: Partial<MeilingWorkbenchConfig> = {},
 ): Promise<PreparedMeilingUserWorkspace> {
   const preparedRoot = await prepareMeilingWorkbench(overrides)
-
-  if (!preparedRoot.enabled) {
-    // 工作台级资产不可用，返回 disabled 用户工作区
-    const partial = resolveMeilingUserWorkspace(userID, {
-      ...overrides,
-      fixedSourceRoot: preparedRoot.fixedSourceRoot,
-      workspaceRoot: preparedRoot.workspaceRoot,
-      dataRoot: preparedRoot.dataRoot,
-    })
-    return {
-      ...partial,
-      enabled: false,
-      assets: [],
-    }
-  }
   const resolved = resolveMeilingUserWorkspace(userID, {
     ...overrides,
     fixedSourceRoot: preparedRoot.fixedSourceRoot,

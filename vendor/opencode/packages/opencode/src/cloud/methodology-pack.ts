@@ -1,6 +1,5 @@
 import fs from "node:fs"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
 
 export type MethodologyPackKey = "base" | "furniture" | "education"
 
@@ -31,10 +30,6 @@ const PACK_REGISTRY: Record<MethodologyPackKey, PackRegistryEntry> = {
   },
 }
 
-function repoRoot() {
-  return path.resolve(fileURLToPath(new URL("../../../../", import.meta.url)))
-}
-
 function envOr(defaultValue: string, value: string | undefined) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : defaultValue
@@ -49,45 +44,74 @@ function normalizePackKey(value: string | undefined): MethodologyPackKey {
   throw new Error(`Unknown methodology pack key: ${value}`)
 }
 
-/** 判断一个路径是否为有效的 Meiling 资产根（至少包含 使用指南.md） */
-function looksLikeMeilingSourceRoot(dir: string): boolean {
+/** 通过 使用指南.md 判断目录是否为有效的 Meiling 资产根 */
+function isValidSourceRoot(dir: string): boolean {
   try {
-    return fs.existsSync(path.join(dir, "使用指南.md"))
+    return fs.statSync(path.join(dir, "使用指南.md")).isFile()
   } catch {
     return false
   }
 }
 
 /**
- * 按优先级探测 Meiling 资产源根目录：
- * 1. process.execPath 同级目录（生产二进制部署）
- * 2. 源码树中的 meiling/assets/git（开发模式）
- * 返回第一个存在的路径；都不存在则返回二进制同级路径并交由调用方报错
+ * 从目标目录向上遍历，查找包含 meiling 资产的仓库根。
+ *
+ * 仓库结构有两种可能：
+ *   {root}/vendor/opencode/meiling/assets/git/          (本项目结构)
+ *   {root}/meiling/assets/git/                           (简化的 OpenCode 结构)
+ *
+ * 遍历策略：从 startDir 开始，逐级向上一路到 /，每级检查：
+ *   <dir>/vendor/opencode/meiling/assets/git/使用指南.md
+ *   <dir>/meiling/assets/git/使用指南.md
+ *   二进制同级 <execDir>/meiling/assets/git/使用指南.md
+ *
+ * 返回找到第一个有效路径，或 null。
  */
-export function defaultMethodologyPackSourceRoot(): string {
+function findSourceRoot(): string | null {
   const execDir = path.dirname(process.execPath)
-  const execName = path.basename(process.execPath, path.extname(process.execPath))
-  const isDevRuntime = ["node", "bun", "tsx", "ts-node"].includes(execName)
 
-  if (isDevRuntime) {
-    const sourceTreePath = path.join(repoRoot(), "meiling", "assets", "git")
-    if (looksLikeMeilingSourceRoot(sourceTreePath)) return sourceTreePath
-    // 开发模式下源码树路径是首选，不存在就退到二进制同级
-    const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
-    if (looksLikeMeilingSourceRoot(binaryAdjacent)) return binaryAdjacent
-    return sourceTreePath // 都不存在，返回源码路径让 assertFixedSource 报明确错误
+  // 0. 二进制同级（build.ts 会将资产复制到这里）
+  const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
+  if (isValidSourceRoot(binaryAdjacent)) return binaryAdjacent
+
+  // 1. 从二进制目录开始向上遍历
+  let dir = execDir
+  const root = path.parse(dir).root
+  while (dir !== root) {
+    const vendorPath = path.join(dir, "vendor", "opencode", "meiling", "assets", "git")
+    if (isValidSourceRoot(vendorPath)) return vendorPath
+
+    const directPath = path.join(dir, "meiling", "assets", "git")
+    if (isValidSourceRoot(directPath)) return directPath
+
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
   }
 
-  // 生产模式：二进制同级优先
-  const binaryAdjacent = path.join(execDir, "meiling", "assets", "git")
-  if (looksLikeMeilingSourceRoot(binaryAdjacent)) return binaryAdjacent
+  // 2. 从 cwd 开始向上遍历（cwd 和 execPath 可能不同）
+  try {
+    let cwd = process.cwd()
+    while (cwd !== root) {
+      const vendorPath = path.join(cwd, "vendor", "opencode", "meiling", "assets", "git")
+      if (isValidSourceRoot(vendorPath)) return vendorPath
 
-  // 退而求其次，尝试源码路径（兼容直接跑 dist 下二进制但 repo 还在的场景）
-  const sourceTreePath = path.join(repoRoot(), "meiling", "assets", "git")
-  if (looksLikeMeilingSourceRoot(sourceTreePath)) return sourceTreePath
+      const directPath = path.join(cwd, "meiling", "assets", "git")
+      if (isValidSourceRoot(directPath)) return directPath
 
-  // 都不存在，返回生产模式首选路径
-  return binaryAdjacent
+      const parent = path.dirname(cwd)
+      if (parent === cwd) break
+      cwd = parent
+    }
+  } catch {
+    // cwd 不可访问
+  }
+
+  return null
+}
+
+export function defaultMethodologyPackSourceRoot(): string {
+  return findSourceRoot() ?? ""
 }
 
 export function resolveMethodologyPack(input: {
@@ -99,13 +123,13 @@ export function resolveMethodologyPack(input: {
   const packKey = normalizePackKey(input.packKey)
   const entry = PACK_REGISTRY[packKey]
 
-  // 环境变量覆盖优先级最高 — 但仅当目录确实存在时才使用
+  // 环境变量显式指定 > 自动探测
   const envOverride =
     input.sourceRoot?.trim() ||
     process.env.MEILING_FIXED_ASSET_SOURCE_DIR?.trim() ||
     process.env[entry.sourceEnv]?.trim()
 
-  const sourceRoot = envOverride && looksLikeMeilingSourceRoot(envOverride)
+  const sourceRoot = envOverride && isValidSourceRoot(envOverride)
     ? envOverride
     : defaultMethodologyPackSourceRoot()
 
