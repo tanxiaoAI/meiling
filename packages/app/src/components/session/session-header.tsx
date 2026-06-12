@@ -685,6 +685,9 @@ function SessionAccountMenu(props: { v2?: boolean }) {
 function resolvePortalLogoutUrl() {
   const bridge = loadPortalBridgeState()
   if (bridge?.logoutUrl) return bridge.logoutUrl
+  if (bridge?.baseUrl) {
+    return new URL("/api/auth/logout", bridge.baseUrl).toString()
+  }
   const configured = import.meta.env.VITE_PORTAL_BASE_URL?.trim()
   if (configured) {
     return new URL("/api/auth/logout", configured).toString()

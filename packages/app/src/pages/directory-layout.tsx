@@ -1,6 +1,7 @@
 import { DataProvider } from "@opencode-ai/ui/context"
 import { showToast } from "@/utils/toast"
 import { base64Encode } from "@opencode-ai/core/util/encode"
+import { pathKey } from "@/utils/path-key"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { createEffect, createMemo, createResource, type ParentProps, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
@@ -24,7 +25,8 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   createEffect(() => {
     const next = sync.data.path.directory
     if (!next || next === props.directory) return
-    if (portalWorkspaceDirectory() === props.directory && next.startsWith("/Users/")) return
+    const portalDirectory = portalWorkspaceDirectory()
+    if (portalDirectory && pathKey(props.directory) === pathKey(portalDirectory)) return
     const path = location.pathname.slice(slug().length + 1)
     navigate(`/${base64Encode(next)}${path}${location.search}${location.hash}`, { replace: true })
   })
@@ -32,8 +34,8 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   createEffect(() => {
     const globalDirectory = serverSync.data.path.directory
     if (!globalDirectory || globalDirectory === props.directory) return
-    if (!props.directory.startsWith("/Users/")) return
-    if (globalDirectory !== "/workspace") return
+    const portalDirectory = portalWorkspaceDirectory()
+    if (portalDirectory && pathKey(props.directory) === pathKey(portalDirectory)) return
     const path = location.pathname.slice(slug().length + 1)
     navigate(`/${base64Encode(globalDirectory)}${path}${location.search}${location.hash}`, { replace: true })
   })
@@ -68,11 +70,23 @@ export default function Layout(props: ParentProps) {
   const params = useParams()
   const language = useLanguage()
   const navigate = useNavigate()
+  const portalWorkspaceDirectory = createMemo(() => loadPortalBridgeState()?.workspaceDirectory?.trim())
   let invalid = ""
 
   const resolved = createMemo(() => {
+    const portalDirectory = portalWorkspaceDirectory()
+    if (portalDirectory) return portalDirectory
     if (!params.dir) return ""
     return decodeDirectory(params.dir) ?? ""
+  })
+
+  createEffect(() => {
+    const portalDirectory = portalWorkspaceDirectory()
+    if (!portalDirectory) return
+    const expected = base64Encode(portalDirectory)
+    if (params.dir === expected) return
+    const sessionPath = params.id ? `/session/${params.id}` : "/session"
+    navigate(`/${expected}${sessionPath}${location.search}${location.hash}`, { replace: true })
   })
 
   createEffect(() => {

@@ -76,7 +76,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
     const portalDirectory = portalBridge?.workspaceDirectory?.trim()
     if (!portalDirectory) return directory
     if (directory === portalDirectory) return directory
-    if (!directory.startsWith("/Users/")) return directory
+    if (!directory.startsWith("/")) return directory
     return portalDirectory
   }
 

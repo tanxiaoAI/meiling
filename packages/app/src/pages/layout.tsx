@@ -135,7 +135,8 @@ export default function Layout(props: ParentProps) {
   createEffect(() => setV2Toast(newDesign()))
   const initialDirectory = decode64(params.dir)
   const location = useLocation()
-  const portalWorkspaceDirectory = createMemo(() => loadPortalBridgeState()?.workspaceDirectory?.trim())
+  const portalBridge = createMemo(() => loadPortalBridgeState())
+  const portalWorkspaceDirectory = createMemo(() => portalBridge()?.workspaceDirectory?.trim())
   const canonicalPortalDirectory = (directory: string | undefined) => {
     if (!directory) return directory ?? ""
     const portalDir = portalWorkspaceDirectory()
@@ -574,7 +575,9 @@ export default function Layout(props: ParentProps) {
     return projects.find((p) => p.worktree === root) ?? projects[0]
   })
 
-  const singleProjectMode = createMemo(() => !!portalWorkspaceDirectory())
+  const singleProjectMode = createMemo(
+    () => !!(portalWorkspaceDirectory() || portalBridge()?.email?.trim() || portalBridge()?.baseUrl?.trim()),
+  )
 
   createEffect(() => {
     if (!portalWorkspaceDirectory()) return
