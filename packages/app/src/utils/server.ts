@@ -20,12 +20,14 @@ export function authFromToken(token: string | null) {
 export function createSdkForServer({
   server,
   portalUser,
+  portalWorkspaceDirectory,
   portalPackKey,
   portalPackVersion,
   ...config
 }: Omit<NonNullable<Parameters<typeof createOpencodeClient>[0]>, "baseUrl"> & {
   server: ServerConnection.HttpBase
   portalUser?: string
+  portalWorkspaceDirectory?: string
   portalPackKey?: string
   portalPackVersion?: string
 }) {
@@ -42,6 +44,7 @@ export function createSdkForServer({
       ...(config.headers instanceof Headers ? Object.fromEntries(config.headers.entries()) : config.headers),
       ...auth,
       ...(portalUser ? { "x-portal-user": portalUser } : {}),
+      ...(portalWorkspaceDirectory ? { "x-portal-workspace-directory": portalWorkspaceDirectory } : {}),
       ...(portalPackKey ? { "x-portal-pack-key": portalPackKey } : {}),
       ...(portalPackVersion ? { "x-portal-pack-version": portalPackVersion } : {}),
     },

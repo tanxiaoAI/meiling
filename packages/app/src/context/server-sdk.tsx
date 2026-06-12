@@ -52,6 +52,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
     fetch: eventFetch,
     server: server.http,
     portalUser,
+    portalWorkspaceDirectory: portalBridge?.workspaceDirectory?.trim(),
     portalPackKey: portalBridge?.packKey?.trim(),
     portalPackVersion: portalBridge?.packVersion?.trim(),
     experimental_workspaceID: defaultWorkspaceID,
@@ -307,6 +308,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
     server: server.http,
     fetch: platform.fetch,
     portalUser,
+    portalWorkspaceDirectory: portalBridge?.workspaceDirectory?.trim(),
     throwOnError: true,
     experimental_workspaceID: defaultWorkspaceID,
   })
@@ -326,6 +328,7 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
         server: server.http,
         fetch: platform.fetch,
         portalUser,
+        portalWorkspaceDirectory: portalBridge?.workspaceDirectory?.trim(),
         portalPackKey: portalBridge?.packKey?.trim(),
         portalPackVersion: portalBridge?.packVersion?.trim(),
         ...opts,

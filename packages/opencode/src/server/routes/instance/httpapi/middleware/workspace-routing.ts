@@ -23,6 +23,7 @@ import { InvalidRequestError } from "../errors"
 export const WorkspaceRoutingQueryFields = {
   directory: Schema.optional(Schema.String),
   workspace: Schema.optional(Schema.String),
+  portal_workspace_directory: Schema.optional(Schema.String),
   portal_pack_key: Schema.optional(Schema.String),
   portal_pack_name: Schema.optional(Schema.String),
   portal_pack_version: Schema.optional(Schema.String),
@@ -121,7 +122,19 @@ function requestPortalPack(request: HttpServerRequest.HttpServerRequest, url: UR
   return { packKey, packName, packVersion }
 }
 
+function requestPortalWorkspaceDirectory(request: HttpServerRequest.HttpServerRequest, url: URL) {
+  const value =
+    request.headers["x-portal-workspace-directory"]?.trim() ||
+    url.searchParams.get("portal_workspace_directory")?.trim() ||
+    undefined
+  if (!value) return
+  if (!value.startsWith("/workspace/users/")) return
+  return value
+}
+
 function resolvePortalWorkspaceDirectory(request: HttpServerRequest.HttpServerRequest, url: URL) {
+  const explicitDirectory = requestPortalWorkspaceDirectory(request, url)
+  if (explicitDirectory) return Effect.succeed(explicitDirectory)
   const userID = requestCredentialUsername(request, url)
   if (!userID) return Effect.succeed(undefined)
   const pack = requestPortalPack(request, url)
