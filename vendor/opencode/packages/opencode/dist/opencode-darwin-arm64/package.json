@@ -1,0 +1,11 @@
+{
+  "name": "opencode-darwin-arm64",
+  "version": "0.0.0-feature/fullstack-product-sync-202606120544",
+  "preferUnplugged": true,
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ]
+}
