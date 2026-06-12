@@ -105,6 +105,46 @@ find_binary() {
   return 1
 }
 
+extract_bundled_binary() {
+  if ! command -v tar >/dev/null 2>&1; then
+    echo "[FATAL] 当前环境缺少 tar，无法解压预置 OpenCode 二进制归档" >&2
+    return 1
+  fi
+
+  for package_root in \
+    "$SCRIPT_DIR/vendor/opencode/packages/opencode" \
+    "$SCRIPT_DIR/packages/opencode"
+  do
+    if [ ! -d "$package_root" ]; then
+      continue
+    fi
+
+    for target in $(candidate_targets); do
+      archive="$package_root/prebuilt/$target.tar.gz"
+      candidate="$package_root/dist/$target/bin/opencode"
+
+      if [ ! -f "$archive" ]; then
+        continue
+      fi
+
+      echo "[INFO] 解压预置二进制归档: $archive"
+      mkdir -p "$(dirname "$candidate")"
+      tar -xzf "$archive" -C "$(dirname "$candidate")"
+
+      if [ -f "$candidate" ]; then
+        chmod +x "$candidate" 2>/dev/null || true
+        echo "$candidate"
+        return 0
+      fi
+
+      echo "[FATAL] 已找到归档但解压后未生成二进制: $archive" >&2
+      return 1
+    done
+  done
+
+  return 1
+}
+
 list_available_targets() {
   for dist_root in \
     "$SCRIPT_DIR/vendor/opencode/packages/opencode/dist" \
@@ -151,6 +191,10 @@ fi
 # 1. 定位 OpenCode 二进制（按当前运行平台精确匹配）
 # ============================================================
 BIN="$(find_binary || true)"
+
+if [ -z "$BIN" ]; then
+  BIN="$(extract_bundled_binary || true)"
+fi
 
 if [ -z "$BIN" ]; then
   echo "[FATAL] 未找到匹配当前平台的 OpenCode 二进制" >&2
