@@ -1,0 +1,18 @@
+[
+  {
+    "id": "req-e2faa15b",
+    "templateId": "benchmark-content-analysis",
+    "title": "对标内容分析",
+    "status": "待处理",
+    "createdAt": "2026-06-09T10:39:28.776Z",
+    "tenantId": "c001",
+    "tenantName": "演示租户",
+    "requesterEmail": "demo@aimedia.local",
+    "requesterName": "演示客户",
+    "notes": "",
+    "summary": "针对某条爆款或一组内容做结构拆解与启发提取。",
+    "runtimeTarget": "workspace/benchmark-contents/",
+    "internalSkillKey": "skill.benchmark-content-analysis.v1",
+    "source": "portal-template"
+  }
+]

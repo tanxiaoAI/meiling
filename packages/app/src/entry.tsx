@@ -220,28 +220,6 @@ if (root instanceof HTMLElement) {
   } else {
     const portalBridge = readPortalBridgeParams(location.search)
     const hasBridgeParams = hasPortalBridgeParams(location.search)
-    // #region debug-point B:entry-bootstrap
-    fetch("http://127.0.0.1:7780/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "login-freeze-crash",
-        runId: "pre-fix",
-        hypothesisId: "B",
-        location: "vendor/opencode/packages/app/src/entry.tsx",
-        msg: "[DEBUG] entry bootstrap",
-        data: {
-          href: location.href,
-          hasBridgeParams,
-          portalBridge,
-          storedBridge: loadPortalBridgeState() ?? null,
-          defaultUrl: getDefaultUrl(),
-          currentUrl: getCurrentUrl(),
-        },
-        ts: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     if (hasBridgeParams) {
       clearServerState()
       savePortalBridgeState(portalBridge)
@@ -274,31 +252,5 @@ if (root instanceof HTMLElement) {
       ),
       root,
     )
-    // #region debug-point B:post-render-dom
-    setTimeout(() => {
-      const center = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
-      fetch("http://127.0.0.1:7780/event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: "login-freeze-crash",
-          runId: "pre-fix",
-          hypothesisId: "B",
-          location: "vendor/opencode/packages/app/src/entry.tsx",
-          msg: "[DEBUG] post render dom snapshot",
-          data: {
-            href: location.href,
-            bodyChildCount: document.body.children.length,
-            centerTag: center?.tagName ?? null,
-            centerText: center?.textContent?.slice(0, 80) ?? null,
-            modalCount: document.querySelectorAll('[role="dialog"]').length,
-            ariaBusyCount: document.querySelectorAll('[aria-busy="true"]').length,
-            pointerNoneCount: document.querySelectorAll('[style*="pointer-events: none"]').length,
-          },
-          ts: Date.now(),
-        }),
-      }).catch(() => {})
-    }, 1500)
-    // #endregion
   }
 }

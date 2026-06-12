@@ -222,27 +222,6 @@ export function AppBaseProviders(props: ParentProps<{ locale?: Locale }>) {
           <UiI18nBridge>
             <ErrorBoundary
               fallback={(error) => {
-                // #region debug-point D:error-boundary
-                fetch("http://127.0.0.1:7780/event", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    sessionId: "login-freeze-crash",
-                    runId: "pre-fix",
-                    hypothesisId: "D",
-                    location: "vendor/opencode/packages/app/src/app.tsx",
-                    msg: "[DEBUG] error boundary fallback",
-                    data: {
-                      href: typeof location === "object" ? location.href : null,
-                      error:
-                        error instanceof Error
-                          ? { name: error.name, message: error.message, stack: error.stack?.split("\n").slice(0, 8) }
-                          : { value: String(error) },
-                    },
-                    ts: Date.now(),
-                  }),
-                }).catch(() => {})
-                // #endregion
                 Sentry.captureException(error)
                 return <ErrorPage error={error} />
               }}

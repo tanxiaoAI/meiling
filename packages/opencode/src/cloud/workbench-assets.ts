@@ -1,4 +1,5 @@
 import fs from "node:fs/promises"
+import { createHash } from "node:crypto"
 import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -22,6 +23,7 @@ type WorkbenchAsset = {
 
 type WorkbenchManifest = {
   fixedSourceRoot: string
+  fixedSourceHash?: string
   workspaceRoot: string
   dataRoot: string
   methodologyPackKey: MethodologyPackKey
@@ -147,59 +149,14 @@ function userContextPath(packDirectory: string) {
 }
 
 async function replaceWithCopy(source: string, target: string) {
-  // #region debug-point E:replace-with-copy-start
-  void fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "E",
-      location: "vendor/opencode/packages/opencode/src/cloud/workbench-assets.ts",
-      msg: "[DEBUG] replaceWithCopy start",
-      data: { source, target },
-      ts: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
   await fs.rm(target, { recursive: true, force: true })
   const stat = await fs.stat(source)
   if (stat.isDirectory()) {
     await fs.cp(source, target, { recursive: true })
-    // #region debug-point E:replace-with-copy-dir-done
-    void fetch("http://127.0.0.1:7780/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "login-freeze-crash",
-        runId: "pre-fix",
-        hypothesisId: "E",
-        location: "vendor/opencode/packages/opencode/src/cloud/workbench-assets.ts",
-        msg: "[DEBUG] replaceWithCopy dir done",
-        data: { source, target },
-        ts: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     return
   }
   await ensureDir(path.dirname(target))
   await fs.copyFile(source, target)
-  // #region debug-point E:replace-with-copy-file-done
-  void fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "E",
-      location: "vendor/opencode/packages/opencode/src/cloud/workbench-assets.ts",
-      msg: "[DEBUG] replaceWithCopy file done",
-      data: { source, target },
-      ts: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
 }
 
 async function isExpectedSymlink(target: string, source: string) {
@@ -221,14 +178,33 @@ async function replaceWithSymlink(source: string, target: string) {
 }
 
 async function assertFixedSource(root: string) {
+  if (!root) {
+    throw new Error(
+      "Meiling fixed asset source root is empty — could not locate methodology pack directory.\n" +
+        `  Binary: ${process.execPath}\n` +
+        `  CWD:    ${(() => { try { return process.cwd() } catch { return "unknown" } })()}\n` +
+        "  Searched: binary-adjacent/meiling/assets/git, and walking up from binary and cwd\n" +
+        "  for vendor/opencode/meiling/assets/git or meiling/assets/git.\n" +
+        "  Ensure the meiling assets (containing 使用指南.md) are deployed with the binary.\n" +
+        "  If all else fails, set MEILING_FIXED_ASSET_SOURCE_DIR to the correct path.",
+    )
+  }
+
   if (!(await exists(root))) {
-    throw new Error(`Missing Meiling fixed asset source: ${root}`)
+    throw new Error(
+      `Meiling fixed asset source does not exist: ${root}\n` +
+        `Set MEILING_FIXED_ASSET_SOURCE_DIR to a directory containing 使用指南.md.`,
+    )
   }
 
   for (const name of [...FIXED_FILES, ...FIXED_DIRS]) {
     const target = path.join(root, name)
     if (!(await exists(target))) {
-      throw new Error(`Missing Meiling asset: ${target}`)
+      throw new Error(
+        `Missing Meiling asset: ${target}\n` +
+          `The source root is: ${root}\n` +
+          `Ensure the methodology pack directory contains all required files and directories.`,
+      )
     }
   }
 }
@@ -340,12 +316,32 @@ function preparedUserWorkspace(
 }
 
 function workspacePrepKey(resolved: PreparedMeilingUserWorkspace) {
+  // 不在此处计算 fixedSourceHash，因为那是异步操作。
+  // 改为在 ensureMeilingUserWorkspace 的异步闭包中用单独的 key。
   return [
     resolved.workspaceDirectory,
     resolved.packDirectory,
     resolved.methodologyPackKey,
     resolved.methodologyPackVersion,
   ].join("::")
+}
+
+async function computeFixedSourceHash(fixedSourceRoot: string): Promise<string> {
+  const hash = createHash("sha256")
+  for (const name of [...FIXED_FILES, ...FIXED_DIRS]) {
+    const entryPath = path.join(fixedSourceRoot, name)
+    try {
+      const stat = await fs.stat(entryPath)
+      hash.update(name)
+      if (stat.isDirectory()) {
+        const files = await fs.readdir(entryPath)
+        hash.update(files.sort().join(","))
+      }
+    } catch {
+      hash.update(`missing:${name}`)
+    }
+  }
+  return hash.digest("hex")
 }
 
 async function canReusePreparedWorkspace(
@@ -363,6 +359,11 @@ async function canReusePreparedWorkspace(
   if (manifest.methodologyPackKey !== resolved.methodologyPackKey) return
   if (manifest.methodologyPackVersion !== resolved.methodologyPackVersion) return
   if (!(await exists(resolved.contextPath))) return
+
+  // 检测方法论文本内容是否变更
+  const currentHash = await computeFixedSourceHash(resolved.fixedSourceRoot)
+  if (manifest.fixedSourceHash !== currentHash) return
+
   for (const name of FIXED_FILES) {
     if (!(await exists(path.join(resolved.packDirectory, name)))) return
   }
@@ -427,8 +428,11 @@ export async function ensureMeilingUserWorkspace(
       pack_version: resolved.methodologyPackVersion,
     })
 
+    const fixedSourceHash = await computeFixedSourceHash(resolved.fixedSourceRoot)
+
     await writeManifest(manifestPath, {
       fixedSourceRoot: resolved.fixedSourceRoot,
+      fixedSourceHash,
       workspaceRoot: resolved.workspaceRoot,
       dataRoot: resolved.dataRoot,
       methodologyPackKey: resolved.methodologyPackKey,

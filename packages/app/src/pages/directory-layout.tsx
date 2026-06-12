@@ -25,26 +25,6 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
     const next = sync.data.path.directory
     if (!next || next === props.directory) return
     if (portalWorkspaceDirectory() === props.directory && next.startsWith("/Users/")) return
-    // #region debug-point F:dir-layout-local-rewrite
-    void fetch("http://127.0.0.1:7780/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "login-freeze-crash",
-        runId: "pre-fix",
-        hypothesisId: "F",
-        location: "vendor/opencode/packages/app/src/pages/directory-layout.tsx",
-        msg: "[DEBUG] directory layout local rewrite",
-        data: {
-          currentDirectory: props.directory,
-          nextDirectory: next,
-          bridgeWorkspaceDirectory: loadPortalBridgeState()?.workspaceDirectory ?? null,
-          href: window.location.href,
-        },
-        ts: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     const path = location.pathname.slice(slug().length + 1)
     navigate(`/${base64Encode(next)}${path}${location.search}${location.hash}`, { replace: true })
   })
@@ -54,26 +34,6 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
     if (!globalDirectory || globalDirectory === props.directory) return
     if (!props.directory.startsWith("/Users/")) return
     if (globalDirectory !== "/workspace") return
-    // #region debug-point F:dir-layout-global-rewrite
-    void fetch("http://127.0.0.1:7780/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "login-freeze-crash",
-        runId: "pre-fix",
-        hypothesisId: "F",
-        location: "vendor/opencode/packages/app/src/pages/directory-layout.tsx",
-        msg: "[DEBUG] directory layout global rewrite",
-        data: {
-          currentDirectory: props.directory,
-          globalDirectory,
-          bridgeWorkspaceDirectory: loadPortalBridgeState()?.workspaceDirectory ?? null,
-          href: window.location.href,
-        },
-        ts: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     const path = location.pathname.slice(slug().length + 1)
     navigate(`/${base64Encode(globalDirectory)}${path}${location.search}${location.hash}`, { replace: true })
   })
