@@ -5,12 +5,14 @@ import { authenticateUser } from "@/lib/auth";
 import { SESSION_COOKIE_NAME } from "@/lib/constants";
 import { buildOpenCodeAppUrl } from "@/lib/opencode";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { resolveRequestOrigin } from "@/lib/request-origin";
 import { createSessionCookieValue } from "@/lib/session";
 
 const LOGIN_RATE_LIMIT_MAX = 10;
 const LOGIN_RATE_LIMIT_WINDOW_MS = 60_000;
 
 export async function POST(request: NextRequest) {
+  const origin = await resolveRequestOrigin(request.url);
   const clientIp =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   if (!rateLimit.allowed) {
     return NextResponse.redirect(
-      new URL("/login?error=rate_limited", request.url),
+      new URL("/login?error=rate_limited", origin || request.url),
       303,
     );
   }
@@ -33,21 +35,21 @@ export async function POST(request: NextRequest) {
   const password = String(formData.get("password") || "");
 
   if (!email) {
-    return NextResponse.redirect(new URL("/login?error=email_required", request.url), 303);
+    return NextResponse.redirect(new URL("/login?error=email_required", origin || request.url), 303);
   }
 
   if (!password) {
-    return NextResponse.redirect(new URL("/login?error=password_required", request.url), 303);
+    return NextResponse.redirect(new URL("/login?error=password_required", origin || request.url), 303);
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.redirect(new URL("/login?error=email_invalid", request.url), 303);
+    return NextResponse.redirect(new URL("/login?error=email_invalid", origin || request.url), 303);
   }
 
   const user = authenticateUser(email, password);
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login?error=invalid_credentials", request.url), 303);
+    return NextResponse.redirect(new URL("/login?error=invalid_credentials", origin || request.url), 303);
   }
 
   const cookieStore = await cookies();
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   const redirectUrl = buildOpenCodeAppUrl({
     user,
-    portalOrigin: new URL(request.url).origin,
+    portalOrigin: origin || new URL(request.url).origin,
   });
 
   return NextResponse.redirect(redirectUrl, 303);

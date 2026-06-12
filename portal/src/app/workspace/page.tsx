@@ -1,7 +1,7 @@
 import { getSessionUser } from "@/lib/session";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { buildOpenCodeAppUrl } from "@/lib/opencode";
+import { resolveRequestOrigin } from "@/lib/request-origin";
 
 export default async function WorkspacePage() {
   const user = await getSessionUser();
@@ -9,10 +9,7 @@ export default async function WorkspacePage() {
   if (!user) {
     redirect("/login");
   }
-  const headerStore = await headers();
-  const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
-  const protocol = headerStore.get("x-forwarded-proto") || "https";
-  const portalOrigin = host ? `${protocol}://${host}` : undefined;
+  const portalOrigin = await resolveRequestOrigin();
 
   if (!portalOrigin) {
     return (
