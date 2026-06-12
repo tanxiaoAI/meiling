@@ -45,4 +45,15 @@ export default [
   },
   tailwindcss(),
   solidPlugin(),
+  {
+    name: "fix-esbuild-jsx",
+    config() {
+      return {
+        esbuild: {
+          jsx: "automatic",
+          jsxImportSource: "solid-js",
+        },
+      }
+    },
+  },
 ]

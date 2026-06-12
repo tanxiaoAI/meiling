@@ -35,27 +35,6 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
       ? storedPortalBridge
       : undefined
   const portalUser = (server.type === "http" && server.authToken ? serverUsername : undefined) || portalBridge?.email?.trim()
-  // #region debug-point C:sdk-context-init
-  fetch("http://127.0.0.1:7780/event", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: "login-freeze-crash",
-      runId: "pre-fix",
-      hypothesisId: "C",
-      location: "vendor/opencode/packages/app/src/context/server-sdk.tsx",
-      msg: "[DEBUG] server sdk context init",
-      data: {
-        serverUrl: server.http.url,
-        portalUser,
-        hasPortalBridge: !!portalBridge,
-        portalWorkspaceDirectory: portalBridge?.workspaceDirectory ?? null,
-        portalPackKey: portalBridge?.packKey ?? null,
-      },
-      ts: Date.now(),
-    }),
-  }).catch(() => {})
-  // #endregion
 
   const eventFetch = (() => {
     if (!platform.fetch || !server) return
@@ -205,24 +184,6 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
   const start = () => {
     if (started) return run
     started = true
-    // #region debug-point C:event-stream-start
-    fetch("http://127.0.0.1:7780/event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "login-freeze-crash",
-        runId: "pre-fix",
-        hypothesisId: "C",
-        location: "vendor/opencode/packages/app/src/context/server-sdk.tsx",
-        msg: "[DEBUG] event stream start",
-        data: {
-          serverUrl: server.http.url,
-          fetchMode: eventFetch ? "platform" : "webview",
-        },
-        ts: Date.now(),
-      }),
-    }).catch(() => {})
-    // #endregion
     const active = ++generation
     const previous = run
     const current = (async () => {
@@ -282,28 +243,6 @@ export function createServerSdkContext(server: ServerConnection.Any, scope: Serv
             await wait(0)
           }
         } catch (error) {
-          // #region debug-point C:event-stream-catch
-          fetch("http://127.0.0.1:7780/event", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sessionId: "login-freeze-crash",
-              runId: "pre-fix",
-              hypothesisId: "C",
-              location: "vendor/opencode/packages/app/src/context/server-sdk.tsx",
-              msg: "[DEBUG] event stream catch",
-              data: {
-                serverUrl: server.http.url,
-                aborted: attempt?.signal?.aborted ?? false,
-                error:
-                  error instanceof Error
-                    ? { name: error.name, message: error.message }
-                    : { value: String(error) },
-              },
-              ts: Date.now(),
-            }),
-          }).catch(() => {})
-          // #endregion
           if (!isStreamClosed(error, attempt?.signal) && !streamErrorLogged) {
             streamErrorLogged = true
             console.error("[global-sdk] event stream failed", {
