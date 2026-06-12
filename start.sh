@@ -127,7 +127,7 @@ extract_bundled_binary() {
         continue
       fi
 
-      echo "[INFO] 解压预置二进制归档: $archive"
+      echo "[INFO] 解压预置二进制归档: $archive" >&2
       mkdir -p "$(dirname "$candidate")"
       tar -xzf "$archive" -C "$(dirname "$candidate")"
 
