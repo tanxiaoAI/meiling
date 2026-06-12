@@ -9,6 +9,7 @@ const FIXED_FILES = ["使用指南.md"] as const
 const FIXED_DIRS = ["01-系统层", "02-业务方法论", "03-执行流程", "04-提示词"] as const
 const DYNAMIC_DIRS = ["05-我方资料", "06-沉淀结论", "07-记录表", "08-对标账号", "09-对标内容"] as const
 const USER_WORKSPACE_SEGMENT = "users"
+const WORKSPACE_SKILL_SEGMENT = path.join(".opencode", "skills")
 
 type WorkbenchAssetKind = "fixed" | "dynamic"
 type WorkbenchAssetType = "file" | "dir"
@@ -148,6 +149,30 @@ function userContextPath(packDirectory: string) {
   return path.join(packDirectory, "_runtime", "context.json")
 }
 
+function skillAssetSourceRoot(fixedSourceRoot: string) {
+  return path.resolve(fixedSourceRoot, "..", "skills")
+}
+
+function userSkillDirectory(workspaceDirectory: string) {
+  return path.join(workspaceDirectory, WORKSPACE_SKILL_SEGMENT)
+}
+
+async function skillAssets(fixedSourceRoot: string) {
+  const root = skillAssetSourceRoot(fixedSourceRoot)
+  try {
+    const entries = await fs.readdir(root, { withFileTypes: true })
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => ({
+        name: entry.name,
+        source: path.join(root, entry.name),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  } catch {
+    return []
+  }
+}
+
 async function replaceWithCopy(source: string, target: string) {
   await fs.rm(target, { recursive: true, force: true })
   const stat = await fs.stat(source)
@@ -175,6 +200,28 @@ async function replaceWithSymlink(source: string, target: string) {
   await fs.rm(target, { recursive: true, force: true })
   await ensureDir(path.dirname(target))
   await fs.symlink(source, target, "dir")
+}
+
+async function appendTreeHash(hash: ReturnType<typeof createHash>, root: string, prefix = ""): Promise<void> {
+  let entries
+  try {
+    entries = await fs.readdir(root, { withFileTypes: true })
+  } catch {
+    hash.update(`missing:${prefix || "."}`)
+    return
+  }
+
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const relative = prefix ? path.join(prefix, entry.name) : entry.name
+    const absolute = path.join(root, entry.name)
+    hash.update(relative)
+    if (entry.isDirectory()) {
+      await appendTreeHash(hash, absolute, relative)
+      continue
+    }
+    const content = await fs.readFile(absolute)
+    hash.update(content)
+  }
 }
 
 async function assertFixedSource(root: string) {
@@ -341,6 +388,7 @@ async function computeFixedSourceHash(fixedSourceRoot: string): Promise<string> 
       hash.update(`missing:${name}`)
     }
   }
+  await appendTreeHash(hash, skillAssetSourceRoot(fixedSourceRoot), "skills")
   return hash.digest("hex")
 }
 
@@ -418,6 +466,12 @@ export async function ensureMeilingUserWorkspace(
       const target = path.join(resolved.packDirectory, name)
       await replaceWithCopy(source, target)
       assets.push({ name, kind: "fixed", type: "dir", source, target })
+    }
+
+    for (const skill of await skillAssets(resolved.fixedSourceRoot)) {
+      const target = path.join(userSkillDirectory(resolved.workspaceDirectory), skill.name)
+      await replaceWithCopy(skill.source, target)
+      assets.push({ name: `skill:${skill.name}`, kind: "fixed", type: "dir", source: skill.source, target })
     }
 
     await writeContext(resolved.contextPath, {
