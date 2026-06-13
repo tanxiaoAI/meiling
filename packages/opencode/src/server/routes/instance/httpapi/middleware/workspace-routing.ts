@@ -134,21 +134,10 @@ function requestPortalWorkspaceDirectory(request: HttpServerRequest.HttpServerRe
 
 function resolvePortalWorkspaceDirectory(request: HttpServerRequest.HttpServerRequest, url: URL) {
   const explicitDirectory = requestPortalWorkspaceDirectory(request, url)
+  if (explicitDirectory) return Effect.succeed(explicitDirectory)
   const userID = requestCredentialUsername(request, url)
-  const pack = requestPortalPack(request, url)
-  if (explicitDirectory) {
-    if (!userID) return Effect.succeed(explicitDirectory)
-    const userSlug = explicitDirectory.split("/").filter(Boolean).at(-1)
-    return Effect.promise(() =>
-      ensureMeilingUserWorkspace(userID, {
-        userSlug,
-        methodologyPackKey: pack.packKey,
-        methodologyPackName: pack.packName,
-        methodologyPackVersion: pack.packVersion,
-      }).then((ws) => ws.workspaceDirectory),
-    )
-  }
   if (!userID) return Effect.succeed(undefined)
+  const pack = requestPortalPack(request, url)
   return Effect.promise(() =>
     ensureMeilingUserWorkspace(userID, {
       methodologyPackKey: pack.packKey,

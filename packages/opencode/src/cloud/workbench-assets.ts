@@ -48,10 +48,6 @@ export type MeilingWorkbenchConfig = {
   methodologyPackVersion: string
 }
 
-export type MeilingUserWorkspaceOverrides = Partial<MeilingWorkbenchConfig> & {
-  userSlug?: string
-}
-
 export type PreparedMeilingWorkbench = {
   enabled: boolean
   fixedSourceRoot: string
@@ -317,10 +313,10 @@ export async function prepareMeilingWorkbench(
 
 export function resolveMeilingUserWorkspace(
   userID: string,
-  overrides: MeilingUserWorkspaceOverrides = {},
+  overrides: Partial<MeilingWorkbenchConfig> = {},
 ): PreparedMeilingUserWorkspace {
   const config = resolveMeilingWorkbenchConfig(overrides)
-  const userSlug = normalizeUserSlug(overrides.userSlug ?? userID)
+  const userSlug = normalizeUserSlug(userID)
   const workspaceDirectory = userWorkspaceDirectory(config, userSlug)
   const dataDirectory = userDataDirectory(config, userSlug)
   const packDirectory = userPackDirectory(config, userSlug)
@@ -427,7 +423,7 @@ async function canReusePreparedWorkspace(
 
 export async function ensureMeilingUserWorkspace(
   userID: string,
-  overrides: MeilingUserWorkspaceOverrides = {},
+  overrides: Partial<MeilingWorkbenchConfig> = {},
 ): Promise<PreparedMeilingUserWorkspace> {
   const preparedRoot = await prepareMeilingWorkbench(overrides)
   const resolved = resolveMeilingUserWorkspace(userID, {
